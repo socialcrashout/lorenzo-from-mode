@@ -1,18 +1,3 @@
-// commands/embed.js
-//
-// Slash command: /embed
-// Paste JSON copied from Discohook's "Send Embed" -> "Message Contents (JSON)"
-// box and it gets sent to the current channel exactly as-is.
-//
-// Two ways to supply the JSON:
-//   1. `json` option   - paste directly (works for shorter payloads, Discord
-//                         string options cap out around 4000-6000 chars)
-//   2. `file` option   - upload a .json file (use this for big embeds /
-//                         Components V2 payloads that are too long to paste)
-//
-// Requires: discord.js v14+
-// npm install discord.js
-
 const {
   SlashCommandBuilder,
   PermissionFlagsBits,
@@ -82,6 +67,14 @@ module.exports = {
     delete payload.edited_timestamp;
     delete payload.author;
     delete payload.type;
+
+    // Discohook's JSON export includes `attachments` metadata (id, filename,
+    // etc.) referencing files from the original message, but never the
+    // actual file bytes. Forwarding it as-is causes Discord to reject the
+    // request with ATTACHMENT_NOT_FOUND since no matching file is uploaded
+    // in this request. Strip it unless you extend this command to handle
+    // real file uploads via the `files` option.
+    delete payload.attachments;
 
     // 4. Send it via a raw REST call so Components V2 / flags come through
     //    untouched (discord.js's builders don't fully support V2 yet)
