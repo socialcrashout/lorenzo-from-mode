@@ -20,6 +20,6 @@ const EMOJIS = {
     [STATUS.DELAYED]: '<:L_Delayed_Status:1502513989681414194>',
 }
 
-//const STATUS_MANAGER_ROLE = '1504311819458580531'
+//const STATUS_MANAGER_ROLE = 'your role id here'
 
 module.exports = { SERVICES, STATUS, EMOJIS }
