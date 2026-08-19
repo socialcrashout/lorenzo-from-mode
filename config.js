@@ -62,16 +62,6 @@ Before opening a ticket, please check <#1502518130616963163> and the FAQ section
         // Text shown next to the select menu before anything is picked
         selectPlaceholder: "Select a category to open a ticket",
     },
-
-    /* ------------------------------------------------------------
-     *  CATEGORIES  (the options in the select menu)
-     *  emoji supports unicode ("🌐") or custom format "<:name:id>"
-     *  pingRoleId = role pinged/added to the ticket when this
-     *  category is chosen. Leave "" to use supportRoleId instead.
-     *  categoryId = the Discord channel category (folder) this
-     *  ticket type's channels get created under. Leave "" to fall
-     *  back to ids.ticketsCategoryId.
-     * ------------------------------------------------------------ */
     categories: [
         {
             id: "general",
@@ -149,3 +139,28 @@ Escalated by {staff}.`,
         closeDelaySeconds: 5,
     },
 };
+const SERVICES = [
+    { key: 'liveries', label: 'Liveries' },
+    { key: 'clothing', label: 'Graphics' },
+    { key: 'discord', label: 'Discord Server' },
+    { key: 'photography', label: 'Photography' },
+    { key: 'bot-development', label: 'Bot Development' },
+    { key: 'gfx', label: 'GFX' },
+]
+
+const STATUS = {
+    OPEN: 'open',
+    CLOSED: 'closed',
+    DELAYED: 'delayed'
+}
+
+const EMOJIS = {
+    HEADER: '<:emoji:1538247091976151070>',
+    [STATUS.OPEN]: '<:L_Open_Status:1502513984949977188>',
+    [STATUS.CLOSED]: '<:L_Closed_Status:1502513987777069127>',
+    [STATUS.DELAYED]: '<:L_Delayed_Status:1502513989681414194>',
+}
+
+//const STATUS_MANAGER_ROLE = 'your role id here'
+
+module.exports = { SERVICES, STATUS, EMOJIS }
