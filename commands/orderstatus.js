@@ -26,7 +26,7 @@ module.exports = {
     .setDescription('Set which services are open, closed, or delayed and post the status.'),
 
   async execute(interaction) {
-    const allowed = interaction.member.roles.cache.some(r => r.name === 'temp');
+    const allowed = interaction.member.roles.cache.some(r => r.name === 'Executive Team');
         if (!allowed) return interaction.reply({ content: 'You do not have permission to use this command.', flags: MessageFlags.Ephemeral });
 
     const state = {
