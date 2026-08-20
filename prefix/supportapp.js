@@ -15,10 +15,8 @@ const {
 } = require('discord.js');
 
 // ---------------------- CONFIG (edit these) ----------------------
-const PREFIX = '-supportapp';
 const BRAND_EMOJI = '<:mode_branding_20260510_032226_00:1506790198917206156>';
-const FOOTER_TEXT = '.mode • Support Team Applications'; // hardcoded footer, edit as needed
-const FOOTER_ICON_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw'; // hardcoded footer icon
+const FOOTER_ICON_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw';
 const SUPPORT_APP_REVIEW_CHANNEL_ID = '1502786233963778189';
 const SUPPORT_ROLE_ID = ['1504316405942718644', '1504645343252320428', '1504316712277774479'];
 // -------------------------------------------------------------------
@@ -26,41 +24,13 @@ const SUPPORT_ROLE_ID = ['1504316405942718644', '1504645343252320428', '15043167
 // Temp storage for answers between modal 1 and modal 2 (per user)
 const pendingApplications = new Collection(); // userId -> { q1, q2, q3, q5, q9 }
 
-// Footer as a full-width banner image (V2 has no native embed-footer)
 function footerGallery() {
   return new MediaGalleryBuilder().addItems(
-    new MediaGalleryItemBuilder().setURL(FOOTER_ICON_URL).setDescription(FOOTER_TEXT)
+    new MediaGalleryItemBuilder().setURL(FOOTER_ICON_URL)
   );
 }
 
-// ---------------------- Step 0: -supportapp message command ----------------------
-function handleMessage(message) {
-  if (message.author.bot) return;
-  if (message.content.trim().toLowerCase() !== PREFIX) return;
-
-  const container = new ContainerBuilder()
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `### ${BRAND_EMOJI} | Support Team Application\nClick below to start your application. You'll answer a few short questions across two steps.`
-      )
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addMediaGalleryComponents(footerGallery());
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('supportapp_start')
-      .setLabel('Start Application')
-      .setStyle(ButtonStyle.Primary)
-  );
-
-  message.channel.send({
-    components: [container, row],
-    flags: MessageFlags.IsComponentsV2,
-  });
-}
-
-// ---------------------- Step 1: Start button -> Modal 1 ----------------------
+// ---------------------- Start button -> Modal 1 ----------------------
 function buildModal1() {
   const modal = new ModalBuilder().setCustomId('supportapp_modal1').setTitle('Support Team Application (1/2)');
 
@@ -128,7 +98,22 @@ function buildModal2() {
   return modal;
 }
 
-// ---------------------- Step 2: Modal 1 submit -> Continue button ----------------------
+function buildDeclineModal(applicantId) {
+  const modal = new ModalBuilder()
+    .setCustomId(`supportapp_declinemodal_${applicantId}`)
+    .setTitle('Decline Application');
+
+  const reason = new TextInputBuilder()
+    .setCustomId('reason')
+    .setLabel('Reason for declining')
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(reason));
+  return modal;
+}
+
+// ---------------------- Modal 1 submit -> Continue button ----------------------
 async function handleModal1Submit(interaction) {
   const answers = {
     q1: interaction.fields.getTextInputValue('q1'),
@@ -149,10 +134,7 @@ async function handleModal1Submit(interaction) {
     .addMediaGalleryComponents(footerGallery());
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('supportapp_continue')
-      .setLabel('Continue')
-      .setStyle(ButtonStyle.Primary)
+    new ButtonBuilder().setCustomId('supportapp_continue').setLabel('Continue').setStyle(ButtonStyle.Primary)
   );
 
   await interaction.reply({
@@ -161,7 +143,7 @@ async function handleModal1Submit(interaction) {
   });
 }
 
-// ---------------------- Step 3: Modal 2 submit -> post to review channel ----------------------
+// ---------------------- Modal 2 submit -> post to review channel ----------------------
 async function handleModal2Submit(interaction) {
   const prev = pendingApplications.get(interaction.user.id);
   if (!prev) {
@@ -222,7 +204,7 @@ async function handleModal2Submit(interaction) {
   });
 }
 
-// ---------------------- Step 4a: Accept button ----------------------
+// ---------------------- Accept button ----------------------
 async function handleAccept(interaction, applicantId) {
   const guild = interaction.guild;
   const member = await guild.members.fetch(applicantId).catch(() => null);
@@ -233,7 +215,7 @@ async function handleAccept(interaction, applicantId) {
       .send({
         content: `${BRAND_EMOJI} You have passed the Support Team Application and have been given the role. Welcome aboard!`,
       })
-      .catch(() => null); // ignore if DMs closed
+      .catch(() => null);
   }
 
   const disabledRow = new ActionRowBuilder().addComponents(
@@ -248,22 +230,7 @@ async function handleAccept(interaction, applicantId) {
   });
 }
 
-// ---------------------- Step 4b: Decline button -> reason modal ----------------------
-function buildDeclineModal(applicantId) {
-  const modal = new ModalBuilder()
-    .setCustomId(`supportapp_declinemodal_${applicantId}`)
-    .setTitle('Decline Application');
-
-  const reason = new TextInputBuilder()
-    .setCustomId('reason')
-    .setLabel('Reason for declining')
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true);
-
-  modal.addComponents(new ActionRowBuilder().addComponents(reason));
-  return modal;
-}
-
+// ---------------------- Decline button -> reason modal -> DM + disable ----------------------
 async function handleDeclineModalSubmit(interaction, applicantId) {
   const reason = interaction.fields.getTextInputValue('reason');
   const guild = interaction.guild;
@@ -291,9 +258,10 @@ async function handleDeclineModalSubmit(interaction, applicantId) {
   await interaction.followUp({ content: `Declined and notified <@${applicantId}>.`, flags: MessageFlags.Ephemeral });
 }
 
-// ---------------------- Wiring ----------------------
-function setup(client) {
-  client.on('messageCreate', handleMessage);
+// ---------------------- One-time interaction binding ----------------------
+function ensureInteractionsBound(client) {
+  if (client._supportAppBound) return;
+  client._supportAppBound = true;
 
   client.on('interactionCreate', async (interaction) => {
     try {
@@ -327,9 +295,33 @@ function setup(client) {
         }
       }
     } catch (err) {
-      console.error('supportApplication error:', err);
+      console.error('supportapp error:', err);
     }
   });
 }
 
-module.exports = setup;
+// ---------------------- Command entry point ----------------------
+module.exports = {
+  name: 'supportapp',
+  execute: async (message, args, client) => {
+    ensureInteractionsBound(client);
+
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `### ${BRAND_EMOJI} | Support Team Application\nClick below to start your application. You'll answer a few short questions across two steps.`
+        )
+      )
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addMediaGalleryComponents(footerGallery());
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('supportapp_start').setLabel('Start Application').setStyle(ButtonStyle.Primary)
+    );
+
+    await message.channel.send({
+      components: [container, row],
+      flags: MessageFlags.IsComponentsV2,
+    });
+  },
+};
