@@ -16,7 +16,6 @@ const {
 
 // ---------------------- CONFIG (edit these) ----------------------
 const BRAND_EMOJI = '<:mode_branding_20260510_032226_00:1506790198917206156>';
-const FOOTER_TEXT = '.mode • Support Team Applications';
 const FOOTER_ICON_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw';
 const SUPPORT_APP_REVIEW_CHANNEL_ID = '1502786233963778189';
 const SUPPORT_ROLE_ID = ['1504316405942718644', '1504645343252320428', '1504316712277774479'];
@@ -27,7 +26,7 @@ const pendingApplications = new Collection(); // userId -> { q1, q2, q3, q5, q9 
 
 function footerGallery() {
   return new MediaGalleryBuilder().addItems(
-    new MediaGalleryItemBuilder().setURL(FOOTER_ICON_URL).setDescription(FOOTER_TEXT)
+    new MediaGalleryItemBuilder().setURL(FOOTER_ICON_URL)
   );
 }
 
@@ -36,32 +35,32 @@ function buildModal1() {
   const modal = new ModalBuilder().setCustomId('supportapp_modal1').setTitle('Support Team Application (1/2)');
 
   const q1 = new TextInputBuilder()
-    .setCustomId('q1')
+    .setCustomId('Q1')
     .setLabel('Are you 13 years old or older? (Yes/No)')
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
 
   const q2 = new TextInputBuilder()
-    .setCustomId('q2')
+    .setCustomId('Q2')
     .setLabel('What is your Discord username?')
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
 
   const q3 = new TextInputBuilder()
-    .setCustomId('q3')
+    .setCustomId('Q3')
     .setLabel('Why are you interested in joining?')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true);
 
   const q5 = new TextInputBuilder()
-    .setCustomId('q5')
+    .setCustomId('Q5')
     .setLabel('Previous support/mod/customer service exp?')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(false);
 
   const q9 = new TextInputBuilder()
-    .setCustomId('q9')
-    .setLabel('Staff gave wrong info — what would you do?')
+    .setCustomId('Q9')
+    .setLabel('What would you do if another staff member gave a member incorrect information?')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true);
 
