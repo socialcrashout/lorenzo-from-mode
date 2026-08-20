@@ -4,6 +4,7 @@ const {
   ActionRowBuilder,
   EmbedBuilder,
   PermissionFlagsBits,
+  MessageFlags,
 } = require('discord.js');
 
 
@@ -20,37 +21,37 @@ const CONFIG = {
     {
       id: 'News/Updates',
       label: 'News/Updates',
-      description: 'Get notified about the latest announcements, updates, and important news from our community.',
+      description: 'Get notified about the latest announcements, updates, and important news.',
       roleId: '1524635188850724984',
     },
     {
       id: 'Order Status',
       label: 'Order Status',
-      description: 'Get notified about any updates regarding orders, including when they open, close, or any important announcements.',
+      description: 'Get notified when orders open, close, or have important updates.',
       roleId: '1524635307495002215',
     },
     {
       id: 'Giveaways',
       label: 'Giveaways',
-      description: 'Get notified whenever we host a new giveaway so you never miss your chance to participate and win ex',
+      description: 'Get notified whenever we host a new giveaway so you never miss out.',
       roleId: '1524635019518152895',
     },
     {
       id: 'Opportunities',
       label: 'Opportunities',
-      description: "Get notified about new opportunities, including applications, partnerships, collaborations, and othe",
+      description: 'Get notified about applications, partnerships, and collaborations.',
       roleId: '1524635449455280199',
     },
     {
       id: 'Free Releases',
       label: 'Free Releases',
-      description: 'Get notified whenever we release free resources, assets, or exclusive content available for everyone',
+      description: 'Get notified whenever we release free resources or exclusive content.',
       roleId: '1524635367813283840',
     },
     {
       id: 'Events',
       label: 'Events',
-      description: 'Get notified about upcoming events, community activities, and special occasions so you never miss ou',
+      description: 'Get notified about upcoming events and community activities.',
       roleId: '1524635261227761765',
     },
   ],
@@ -110,7 +111,10 @@ function buildCategoryRow(selectedIds) {
     .addOptions(
       CONFIG.categories.map((cat) => ({
         label: cat.label,
-        description: cat.description,
+        description:
+          cat.description.length > 100
+            ? `${cat.description.slice(0, 97)}...`
+            : cat.description,
         value: cat.id,
         default: selectedIds.includes(cat.id),
       }))
@@ -131,17 +135,13 @@ function buildPanel(member) {
   return { embeds: [embed], components: [row] };
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// 4. HANDLERS
-// ─────────────────────────────────────────────────────────────────────────
-
 const data = new SlashCommandBuilder()
   .setName('notifications')
   .setDescription('Choose which alerts you want to receive in this server.');
 
 async function execute(interaction) {
   const panel = buildPanel(interaction.member);
-  await interaction.reply({ ...panel, ephemeral: true });
+  await interaction.reply({ ...panel, flags: MessageFlags.Ephemeral });
 }
 
 async function handleTextTrigger(message) {
@@ -157,7 +157,7 @@ async function handleComponent(interaction) {
   if (!me.permissions.has(PermissionFlagsBits.ManageRoles)) {
     await interaction.reply({
       content: "I'm missing the **Manage Roles** permission, so I can't assign these yet.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return true;
   }
