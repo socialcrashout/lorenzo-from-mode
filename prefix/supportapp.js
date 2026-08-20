@@ -1,3 +1,7 @@
+// prefix/supportapp.js
+// Drop in your /prefix folder. Your loader picks it up automatically via
+// { name, execute }. No changes to index.js needed.
+
 const {
   ContainerBuilder,
   TextDisplayBuilder,
@@ -21,46 +25,48 @@ const SUPPORT_APP_REVIEW_CHANNEL_ID = '1502786233963778189';
 const SUPPORT_ROLE_ID = ['1504316405942718644', '1504645343252320428', '1504316712277774479'];
 // -------------------------------------------------------------------
 
-// Temp storage for answers between modal 1 and modal 2 (per user)
+// Temp storage between modal 1 -> modal 2 (per user)
 const pendingApplications = new Collection(); // userId -> { q1, q2, q3, q5, q9 }
+// Full submitted answers, kept so Accept/Decline can rebuild the container
+const submittedApplications = new Collection(); // userId -> { q1..q12 }
 
 function footerGallery() {
-  return new MediaGalleryBuilder().addItems(
-    new MediaGalleryItemBuilder().setURL(FOOTER_ICON_URL)
-  );
+  return new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(FOOTER_ICON_URL));
 }
 
-// ---------------------- Start button -> Modal 1 ----------------------
+// ---------------------- Modals ----------------------
+// NOTE: customIds below are lowercase and MUST match the lowercase keys
+// read in handleModal1Submit/handleModal2Submit exactly (case-sensitive).
 function buildModal1() {
   const modal = new ModalBuilder().setCustomId('supportapp_modal1').setTitle('Support Team Application (1/2)');
 
   const q1 = new TextInputBuilder()
-    .setCustomId('Q1')
+    .setCustomId('q1')
     .setLabel('Are you 13 years old or older? (Yes/No)')
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
 
   const q2 = new TextInputBuilder()
-    .setCustomId('Q2')
+    .setCustomId('q2')
     .setLabel('What is your Discord username?')
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
 
   const q3 = new TextInputBuilder()
-    .setCustomId('Q3')
+    .setCustomId('q3')
     .setLabel('Why are you interested in joining?')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true);
 
   const q5 = new TextInputBuilder()
-    .setCustomId('Q5')
+    .setCustomId('q5')
     .setLabel('Previous support/mod/customer service exp?')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(false);
 
   const q9 = new TextInputBuilder()
-    .setCustomId('Q9')
-    .setLabel('What would you do if another staff member gave a member incorrect information?')
+    .setCustomId('q9')
+    .setLabel('Staff gave wrong info — what would you do?')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true);
 
@@ -113,6 +119,49 @@ function buildDeclineModal(applicantId) {
   return modal;
 }
 
+// ---------------------- Shared: build the review container ----------------------
+// state: 'pending' | 'accepted' | 'declined'
+function buildReviewContainer(applicantId, answers, state) {
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `### ${BRAND_EMOJI} | New Support Team Application\nApplicant: <@${applicantId}> (${applicantId})`
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        [
+          `**1. Are you 13 years old or older?**\n${answers.q1}`,
+          `**2. What is your Discord username?**\n${answers.q2}`,
+          `**3. Why are you interested in joining the Support Team?**\n${answers.q3}`,
+          `**5. Do you have any previous experience in customer service?**\n${answers.q5}`,
+          `**9. What would you do if another staff member gave a member incorrect information?**\n${answers.q9}`,
+          `**10. How active can you be within the server?**\n${answers.q10}`,
+          `**12. Is there anything else you would like us to know about you?**\n${answers.q12}`,
+        ].join('\n')
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addMediaGalleryComponents(footerGallery());
+
+  const acceptBtn = new ButtonBuilder()
+    .setCustomId(state === 'pending' ? `supportapp_accept_${applicantId}` : 'supportapp_accept_disabled')
+    .setLabel(state === 'accepted' ? 'Accepted' : 'Accept')
+    .setStyle(ButtonStyle.Success)
+    .setDisabled(state !== 'pending');
+
+  const declineBtn = new ButtonBuilder()
+    .setCustomId(state === 'pending' ? `supportapp_decline_${applicantId}` : 'supportapp_decline_disabled')
+    .setLabel(state === 'declined' ? 'Declined' : 'Decline')
+    .setStyle(ButtonStyle.Danger)
+    .setDisabled(state !== 'pending');
+
+  container.addActionRowComponents(new ActionRowBuilder().addComponents(acceptBtn, declineBtn));
+
+  return container;
+}
+
 // ---------------------- Modal 1 submit -> Continue button ----------------------
 async function handleModal1Submit(interaction) {
   const answers = {
@@ -127,18 +176,19 @@ async function handleModal1Submit(interaction) {
   const container = new ContainerBuilder()
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `## ${BRAND_EMOJI} | Step 1 complete\nClick below to finish the last two questions.`
+        `### ${BRAND_EMOJI} | Step 1 complete\nClick below to finish the last two questions.`
       )
     )
     .addSeparatorComponents(new SeparatorBuilder())
-    .addMediaGalleryComponents(footerGallery());
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('supportapp_continue').setLabel('Continue').setStyle(ButtonStyle.Primary)
-  );
+    .addMediaGalleryComponents(footerGallery())
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('supportapp_continue').setLabel('Continue').setStyle(ButtonStyle.Secondary)
+      )
+    );
 
   await interaction.reply({
-    components: [container, row],
+    components: [container],
     flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
   });
 }
@@ -154,47 +204,18 @@ async function handleModal2Submit(interaction) {
   }
   pendingApplications.delete(interaction.user.id);
 
-  const q10 = interaction.fields.getTextInputValue('q10');
-  const q12 = interaction.fields.getTextInputValue('q12') || 'N/A';
+  const answers = {
+    ...prev,
+    q10: interaction.fields.getTextInputValue('q10'),
+    q12: interaction.fields.getTextInputValue('q12') || 'N/A',
+  };
+  submittedApplications.set(interaction.user.id, answers);
 
   const reviewChannel = await interaction.client.channels.fetch(SUPPORT_APP_REVIEW_CHANNEL_ID);
-
-  const container = new ContainerBuilder()
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `## ${BRAND_EMOJI} | New Support Team Application\nApplicant: <@${interaction.user.id}> (${interaction.user.id})`
-      )
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        [
-          `**1. Are you 13 years old or older?**\n${prev.q1}`,
-          `**2. What is your Discord username?**\n${prev.q2}`,
-          `**3. Why are you interested in joining the Support Team?**\n${prev.q3}`,
-          `**5. Do you have any previous experience in customer service?**\n${prev.q5}`,
-          `**9. What would you do if another staff member gave a member incorrect information?**\n${prev.q9}`,
-          `**10. How active can you be within the server?**\n${q10}`,
-          `**12. Is there anything else you would like us to know about you?**\n${q12}`,
-        ].join('\n\n')
-      )
-    )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addMediaGalleryComponents(footerGallery());
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`supportapp_accept_${interaction.user.id}`)
-      .setLabel('Accept')
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId(`supportapp_decline_${interaction.user.id}`)
-      .setLabel('Decline')
-      .setStyle(ButtonStyle.Danger)
-  );
+  const container = buildReviewContainer(interaction.user.id, answers, 'pending');
 
   await reviewChannel.send({
-    components: [container, row],
+    components: [container],
     flags: MessageFlags.IsComponentsV2,
   });
 
@@ -206,56 +227,67 @@ async function handleModal2Submit(interaction) {
 
 // ---------------------- Accept button ----------------------
 async function handleAccept(interaction, applicantId) {
+  await interaction.deferUpdate();
+
   const guild = interaction.guild;
   const member = await guild.members.fetch(applicantId).catch(() => null);
 
   if (member) {
     await member.roles.add(SUPPORT_ROLE_ID).catch(() => null);
+
+    const dmContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `${BRAND_EMOJI} You have passed the Support Team Application and have been given the role. Welcome aboard!`
+        )
+      )
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addMediaGalleryComponents(footerGallery());
+
     await member
-      .send({
-        content: `${BRAND_EMOJI} You have passed the Support Team Application and have been given the role. Welcome aboard!`,
-      })
+      .send({ components: [dmContainer], flags: MessageFlags.IsComponentsV2 })
       .catch(() => null);
   }
 
-  const disabledRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('supportapp_accepted').setLabel('Accepted').setStyle(ButtonStyle.Success).setDisabled(true),
-    new ButtonBuilder().setCustomId('supportapp_decline_disabled').setLabel('Decline').setStyle(ButtonStyle.Danger).setDisabled(true)
-  );
+  const answers = submittedApplications.get(applicantId);
+  const container = buildReviewContainer(applicantId, answers, 'accepted');
 
-  const components = interaction.message.components.slice(0, -1);
-  await interaction.update({
-    components: [...components, disabledRow],
+  await interaction.editReply({
+    components: [container],
     flags: MessageFlags.IsComponentsV2,
   });
 }
 
 // ---------------------- Decline button -> reason modal -> DM + disable ----------------------
 async function handleDeclineModalSubmit(interaction, applicantId) {
+  await interaction.deferUpdate();
+
   const reason = interaction.fields.getTextInputValue('reason');
   const guild = interaction.guild;
   const member = await guild.members.fetch(applicantId).catch(() => null);
 
   if (member) {
+    const dmContainer = new ContainerBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `${BRAND_EMOJI} Your Support Team Application was not accepted at this time.\n**Reason:** ${reason}`
+        )
+      )
+      .addSeparatorComponents(new SeparatorBuilder())
+      .addMediaGalleryComponents(footerGallery());
+
     await member
-      .send({
-        content: `${BRAND_EMOJI} Your Support Team Application was not accepted at this time.\n**Reason:** ${reason}`,
-      })
+      .send({ components: [dmContainer], flags: MessageFlags.IsComponentsV2 })
       .catch(() => null);
   }
 
-  const disabledRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('supportapp_accept_disabled').setLabel('Accept').setStyle(ButtonStyle.Success).setDisabled(true),
-    new ButtonBuilder().setCustomId('supportapp_declined').setLabel('Declined').setStyle(ButtonStyle.Danger).setDisabled(true)
-  );
+  const answers = submittedApplications.get(applicantId);
+  const container = buildReviewContainer(applicantId, answers, 'declined');
 
-  const components = interaction.message.components.slice(0, -1);
-  await interaction.update({
-    components: [...components, disabledRow],
+  await interaction.editReply({
+    components: [container],
     flags: MessageFlags.IsComponentsV2,
   });
-
-  await interaction.followUp({ content: `Declined and notified <@${applicantId}>.`, flags: MessageFlags.Ephemeral });
 }
 
 // ---------------------- One-time interaction binding ----------------------
@@ -313,14 +345,15 @@ module.exports = {
         )
       )
       .addSeparatorComponents(new SeparatorBuilder())
-      .addMediaGalleryComponents(footerGallery());
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('supportapp_start').setLabel('Start Application').setStyle(ButtonStyle.Primary)
-    );
+      .addMediaGalleryComponents(footerGallery())
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('supportapp_start').setLabel('Start Application').setStyle(ButtonStyle.Secondary)
+        )
+      );
 
     await message.channel.send({
-      components: [container, row],
+      components: [container],
       flags: MessageFlags.IsComponentsV2,
     });
   },
