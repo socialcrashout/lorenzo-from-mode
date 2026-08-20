@@ -2,7 +2,11 @@ const {
   SlashCommandBuilder,
   StringSelectMenuBuilder,
   ActionRowBuilder,
-  EmbedBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
   PermissionFlagsBits,
   MessageFlags,
 } = require('discord.js');
@@ -14,8 +18,8 @@ const CONFIG = {
     "Choose the alerts you want to receive and stay informed about everything happening in the server.You can update your preferences anytime by selecting an option again.",
   panelHint:
     '**View or update your notification preferences anytime by running **/notifications**, **-alerts**, or **-notifications**.**',
-  footerText: '.mode',
-  footerIconURL: 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw',
+  // Full-width banner shown at the bottom of the panel, no text — just the image.
+  footerImageURL: 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw',
 
   // Notification categories — id must be unique, roleId is the role that
   // gets added/removed on toggle.
@@ -93,7 +97,7 @@ async function applyCategorySelection(member, selectedIds) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// 3. PANEL BUILDER
+// 3. PANEL BUILDER — Components V2 container, no accent color.
 // ─────────────────────────────────────────────────────────────────────────
 
 function buildCategoryRow(selectedIds) {
@@ -130,15 +134,29 @@ function buildCategoryRow(selectedIds) {
 function buildPanel(member) {
   const selectedIds = getSelectedCategories(member);
 
-  const embed = new EmbedBuilder()
-    .setTitle(CONFIG.panelTitle)
-    .setDescription(`${CONFIG.panelDescription}\n\n${CONFIG.panelHint}`)
-    .setColor(null) // explicitly no accent color
-    .setFooter({ text: CONFIG.footerText, iconURL: CONFIG.footerIconURL });
+  const container = new ContainerBuilder();
+  // No .setAccentColor(...) call — no accent color.
 
-  const row = buildCategoryRow(selectedIds);
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`## ${CONFIG.panelTitle}`),
+    new TextDisplayBuilder().setContent(CONFIG.panelDescription)
+  );
+  container.addSeparatorComponents(new SeparatorBuilder());
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(CONFIG.panelHint)
+  );
+  container.addSeparatorComponents(new SeparatorBuilder());
+  container.addActionRowComponents(buildCategoryRow(selectedIds));
 
-  return { embeds: [embed], components: [row] };
+  if (CONFIG.footerImageURL) {
+    container.addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(
+        new MediaGalleryItemBuilder().setURL(CONFIG.footerImageURL)
+      )
+    );
+  }
+
+  return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -151,7 +169,10 @@ const data = new SlashCommandBuilder()
 
 async function execute(interaction) {
   const panel = buildPanel(interaction.member);
-  await interaction.reply({ ...panel, flags: MessageFlags.Ephemeral });
+  await interaction.reply({
+    ...panel,
+    flags: panel.flags | MessageFlags.Ephemeral,
+  });
 }
 
 async function handleTextTrigger(message) {
