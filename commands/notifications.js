@@ -14,6 +14,8 @@ const CONFIG = {
     "Choose the alerts you want to receive and stay informed about everything happening in the server.You can update your preferences anytime by selecting an option again.",
   panelHint:
     '**View or update your notification preferences anytime by running **/notifications**, **-alerts**, or **-notifications**.**',
+  footerText: '.mode',
+  footerIconURL: 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw',
 
   // Notification categories — id must be unique, roleId is the role that
   // gets added/removed on toggle.
@@ -111,6 +113,9 @@ function buildCategoryRow(selectedIds) {
     .addOptions(
       CONFIG.categories.map((cat) => ({
         label: cat.label,
+        // Discord hard-caps option descriptions at 100 chars; addOptions
+        // throws (not a graceful reject) if any description runs over, so
+        // this truncation is a safety net against future long descriptions.
         description:
           cat.description.length > 100
             ? `${cat.description.slice(0, 97)}...`
@@ -127,13 +132,18 @@ function buildPanel(member) {
 
   const embed = new EmbedBuilder()
     .setTitle(CONFIG.panelTitle)
-    .setDescription(`${CONFIG.panelDescription}\n\n${CONFIG.panelHint}`);
-  // no .setColor(...) call — no accent color
+    .setDescription(`${CONFIG.panelDescription}\n\n${CONFIG.panelHint}`)
+    .setColor(null) // explicitly no accent color
+    .setFooter({ text: CONFIG.footerText, iconURL: CONFIG.footerIconURL });
 
   const row = buildCategoryRow(selectedIds);
 
   return { embeds: [embed], components: [row] };
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// 4. HANDLERS
+// ─────────────────────────────────────────────────────────────────────────
 
 const data = new SlashCommandBuilder()
   .setName('notifications')
