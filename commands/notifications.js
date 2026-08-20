@@ -193,10 +193,25 @@ async function handleComponent(interaction) {
     return true;
   }
 
-  await applyCategorySelection(interaction.member, interaction.values);
+  // Ack immediately — role add/remove calls can take longer than Discord's
+  // 3-second interaction window, which is what was causing "didn't respond
+  // in time". deferUpdate() buys up to 15 minutes before we have to follow up.
+  await interaction.deferUpdate();
+
+  try {
+    await applyCategorySelection(interaction.member, interaction.values);
+  } catch (err) {
+    console.error('Failed to apply category roles:', err);
+    await interaction.followUp({
+      content:
+        "Something went wrong updating your roles — likely my role needs to be moved above the notification roles in Server Settings > Roles.",
+      flags: MessageFlags.Ephemeral,
+    });
+    return true;
+  }
 
   const panel = buildPanel(interaction.member);
-  await interaction.update(panel);
+  await interaction.editReply(panel);
   return true;
 }
 
