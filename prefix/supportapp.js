@@ -127,7 +127,7 @@ async function handleModal1Submit(interaction) {
   const container = new ContainerBuilder()
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `### ${BRAND_EMOJI} | Step 1 complete\nClick below to finish the last two questions.`
+        `## ${BRAND_EMOJI} | Step 1 complete\nClick below to finish the last two questions.`
       )
     )
     .addSeparatorComponents(new SeparatorBuilder())
@@ -162,20 +162,20 @@ async function handleModal2Submit(interaction) {
   const container = new ContainerBuilder()
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `### ${BRAND_EMOJI} | New Support Team Application\nApplicant: <@${interaction.user.id}> (${interaction.user.id})`
+        `## ${BRAND_EMOJI} | New Support Team Application\nApplicant: <@${interaction.user.id}> (${interaction.user.id})`
       )
     )
     .addSeparatorComponents(new SeparatorBuilder())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         [
-          `**1. 13 or older?**\n${prev.q1}`,
-          `**2. Discord username**\n${prev.q2}`,
-          `**3. Why interested?**\n${prev.q3}`,
-          `**5. Prior experience**\n${prev.q5}`,
-          `**9. Wrong info from staff — response**\n${prev.q9}`,
-          `**10. Activity level**\n${q10}`,
-          `**12. Anything else**\n${q12}`,
+          `**1. Are you 13 years old or older?**\n${prev.q1}`,
+          `**2. What is your Discord username?**\n${prev.q2}`,
+          `**3. Why are you interested in joining the Support Team?**\n${prev.q3}`,
+          `**5. Do you have any previous experience in customer service?**\n${prev.q5}`,
+          `**9. What would you do if another staff member gave a member incorrect information?**\n${prev.q9}`,
+          `**10. How active can you be within the server?**\n${q10}`,
+          `**12. Is there anything else you would like us to know about you?**\n${q12}`,
         ].join('\n\n')
       )
     )
