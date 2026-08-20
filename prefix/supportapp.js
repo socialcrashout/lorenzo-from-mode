@@ -142,8 +142,7 @@ function buildReviewContainer(applicantId, answers, state) {
         ].join('\n')
       )
     )
-    .addSeparatorComponents(new SeparatorBuilder())
-    .addMediaGalleryComponents(footerGallery());
+    .addSeparatorComponents(new SeparatorBuilder());
 
   const acceptBtn = new ButtonBuilder()
     .setCustomId(state === 'pending' ? `supportapp_accept_${applicantId}` : 'supportapp_accept_disabled')
@@ -157,7 +156,9 @@ function buildReviewContainer(applicantId, answers, state) {
     .setStyle(ButtonStyle.Danger)
     .setDisabled(state !== 'pending');
 
-  container.addActionRowComponents(new ActionRowBuilder().addComponents(acceptBtn, declineBtn));
+  container
+    .addActionRowComponents(new ActionRowBuilder().addComponents(acceptBtn, declineBtn))
+    .addMediaGalleryComponents(footerGallery());
 
   return container;
 }
@@ -180,12 +181,12 @@ async function handleModal1Submit(interaction) {
       )
     )
     .addSeparatorComponents(new SeparatorBuilder())
-    .addMediaGalleryComponents(footerGallery())
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('supportapp_continue').setLabel('Continue').setStyle(ButtonStyle.Secondary)
       )
-    );
+    )
+    .addMediaGalleryComponents(footerGallery());
 
   await interaction.reply({
     components: [container],
@@ -345,12 +346,12 @@ module.exports = {
         )
       )
       .addSeparatorComponents(new SeparatorBuilder())
-      .addMediaGalleryComponents(footerGallery())
       .addActionRowComponents(
         new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId('supportapp_start').setLabel('Start Application').setStyle(ButtonStyle.Secondary)
         )
-      );
+      )
+      .addMediaGalleryComponents(footerGallery());
 
     await message.channel.send({
       components: [container],
