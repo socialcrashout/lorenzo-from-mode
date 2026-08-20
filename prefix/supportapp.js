@@ -16,6 +16,7 @@ const {
 
 // ---------------------- CONFIG (edit these) ----------------------
 const BRAND_EMOJI = '<:mode_branding_20260510_032226_00:1506790198917206156>';
+const FOOTER_TEXT = '.mode • Support Team Applications';
 const FOOTER_ICON_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw';
 const SUPPORT_APP_REVIEW_CHANNEL_ID = '1502786233963778189';
 const SUPPORT_ROLE_ID = ['1504316405942718644', '1504645343252320428', '1504316712277774479'];
@@ -26,7 +27,7 @@ const pendingApplications = new Collection(); // userId -> { q1, q2, q3, q5, q9 
 
 function footerGallery() {
   return new MediaGalleryBuilder().addItems(
-    new MediaGalleryItemBuilder().setURL(FOOTER_ICON_URL)
+    new MediaGalleryItemBuilder().setURL(FOOTER_ICON_URL).setDescription(FOOTER_TEXT)
   );
 }
 
