@@ -1,11 +1,8 @@
-// prefix/supportapp.js
-// Drop in your /prefix folder. Your loader picks it up automatically via
-// { name, execute }. No changes to index.js needed.
-
 const {
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
+  SectionBuilder,
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
   ActionRowBuilder,
@@ -175,17 +172,18 @@ async function handleModal1Submit(interaction) {
   pendingApplications.set(interaction.user.id, answers);
 
   const container = new ContainerBuilder()
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `### ${BRAND_EMOJI} | Step 1 complete\nClick below to finish the last two questions.`
-      )
+    .addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            `### ${BRAND_EMOJI} | Step 1 complete\nClick to finish the last two questions.`
+          )
+        )
+        .setButtonAccessory(
+          new ButtonBuilder().setCustomId('supportapp_continue').setLabel('Continue').setStyle(ButtonStyle.Secondary)
+        )
     )
     .addSeparatorComponents(new SeparatorBuilder())
-    .addActionRowComponents(
-      new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('supportapp_continue').setLabel('Continue').setStyle(ButtonStyle.Secondary)
-      )
-    )
     .addMediaGalleryComponents(footerGallery());
 
   await interaction.reply({
@@ -340,22 +338,25 @@ module.exports = {
     ensureInteractionsBound(client);
 
     const container = new ContainerBuilder()
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `### ${BRAND_EMOJI} | Support Team Application\nClick below to start your application. You'll answer a few short questions across two steps.`
-        )
+      .addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `### ${BRAND_EMOJI} | Support Team Application\nAnswer a few short questions across two steps.`
+            )
+          )
+          .setButtonAccessory(
+            new ButtonBuilder().setCustomId('supportapp_start').setLabel('Start Application').setStyle(ButtonStyle.Secondary)
+          )
       )
       .addSeparatorComponents(new SeparatorBuilder())
-      .addActionRowComponents(
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('supportapp_start').setLabel('Start Application').setStyle(ButtonStyle.Secondary)
-        )
-      )
       .addMediaGalleryComponents(footerGallery());
 
     await message.channel.send({
       components: [container],
       flags: MessageFlags.IsComponentsV2,
     });
+
+    await message.delete().catch(() => null);
   },
 };
