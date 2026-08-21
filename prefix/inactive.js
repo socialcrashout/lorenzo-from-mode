@@ -14,8 +14,8 @@ const FOOTER_IMAGE_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/ra
 
 module.exports = {
     name: 'inactive',
-    description: 'Log an inactivity notice for a member',
-    // Usage: -inactive @user <ref>
+    description: 'Send an inactivity notice to a member',
+    // Usage: -inactive @user
 
     async execute(message, args) {
         const errorReply = (text) => message.reply({
@@ -26,19 +26,13 @@ module.exports = {
         });
 
         if (!message.member.roles.cache.some(role => ALLOWED_ROLE_IDS.includes(role.id))) {
-            return errorReply('<:warning:1531049700520624278> You do not have permission to log inactivity notices.');
+            return errorReply('<:warning:1531049700520624278> You do not have permission to send inactivity notices.');
         }
 
         const target = message.mentions.members?.first();
 
         if (!target) {
-            return errorReply('<:WarningIcon:1508245066135765034> Please mention a member. Usage: `-inactive @user <ref>`');
-        }
-
-        const ref = args.slice(1).join(' ');
-
-        if (!ref) {
-            return errorReply('<:WarningIcon:1508245066135765034> Please provide a reference. Usage: `-inactive @user <ref>`');
+            return errorReply('<:WarningIcon:1508245066135765034> Please mention a member. Usage: `-inactive @user`');
         }
 
         try {
@@ -53,7 +47,6 @@ module.exports = {
                             `## <:ShieldCheck:1502514212168274061> Inactivity Notice Logged\n` +
                             `-# **<:sig:1502514350014070795> Logged By:** ${message.author}\n` +
                             `**<:person:1502514200705105981> Member:** ${target.user.tag} (${target.id})\n` +
-                            `**<:Comment:1502512880493400196> Reference:** ${ref}\n` +
                             `**<:Dot:1502513706347528213> Channel:** ${message.channel}\n` +
                             `**<:Calendar:1502513561866473734> Timestamp:** <t:${timestamp}:F>`
                         )
