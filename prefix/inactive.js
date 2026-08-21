@@ -68,7 +68,7 @@ module.exports = {
                 .addTextDisplayComponents(
                     new TextDisplayBuilder().setContent(
                         `## <:mode_branding_20260510_032226_00:1506790198917206156> | Ticket Inactive\n` +
-                        `<:userquestion:1502514545791471628> Hello <@${target.id}>, this ticket has been inactive, and we have not received a response from you. **Please reply to this ticket as soon as possible so we can proceed with your request**.\n` + `<:Plane:1508660141476548729> If we do not receive a response within a reasonable timeframe, this ticket may be closed.`
+                        `<:userquestion:1502514545791471628> Hello <@${target.id}>, this ticket has been inactive, and we have not received a response from you. **Please reply to this ticket as soon as possible so we can proceed with your request**. If we do not receive a response within a reasonable timeframe, this ticket may be closed.\n`
                     )
                 )
                 .addMediaGalleryComponents(
