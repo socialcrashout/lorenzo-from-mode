@@ -1,0 +1,98 @@
+const { ContainerBuilder, TextDisplayBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags } = require('discord.js');
+
+// ====== EASY CONFIG ======
+const LOG_CHANNEL_ID = '1506450870269906944'; // channel where inactive notices get logged
+const ALLOWED_ROLE_IDS = [
+    '1504320706341502996',
+    '1504313264576925757',
+    '1504312910862880879',
+    '1504311819458580531',
+];
+
+const FOOTER_IMAGE_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw'; // hardcoded footer image
+// ==========================
+
+module.exports = {
+    name: 'inactive',
+    description: 'Log an inactivity notice for a member',
+    // Usage: -inactive @user <ref>
+
+    async execute(message, args) {
+        const errorReply = (text) => message.reply({
+            components: [new ContainerBuilder().addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(text)
+            )],
+            flags: MessageFlags.IsComponentsV2,
+        });
+
+        if (!message.member.roles.cache.some(role => ALLOWED_ROLE_IDS.includes(role.id))) {
+            return errorReply('<:warning:1531049700520624278> You do not have permission to log inactivity notices.');
+        }
+
+        const target = message.mentions.members?.first();
+
+        if (!target) {
+            return errorReply('<:WarningIcon:1508245066135765034> Please mention a member. Usage: `-inactive @user <ref>`');
+        }
+
+        const ref = args.slice(1).join(' ');
+
+        if (!ref) {
+            return errorReply('<:WarningIcon:1508245066135765034> Please provide a reference. Usage: `-inactive @user <ref>`');
+        }
+
+        try {
+            const timestamp = Math.floor(Date.now() / 1000);
+
+            const logChannel = message.guild.channels.cache.get(LOG_CHANNEL_ID);
+
+            if (logChannel) {
+                const logContainer = new ContainerBuilder()
+                    .addTextDisplayComponents(
+                        new TextDisplayBuilder().setContent(
+                            `## <:ShieldCheck:1502514212168274061> Inactivity Notice Logged\n` +
+                            `-# **<:sig:1502514350014070795> Logged By:** ${message.author}\n` +
+                            `**<:person:1502514200705105981> Member:** ${target.user.tag} (${target.id})\n` +
+                            `**<:Comment:1502512880493400196> Reference:** ${ref}\n` +
+                            `**<:Dot:1502513706347528213> Channel:** ${message.channel}\n` +
+                            `**<:Calendar:1502513561866473734> Timestamp:** <t:${timestamp}:F>`
+                        )
+                    )
+                    .addMediaGalleryComponents(
+                        new MediaGalleryBuilder().addItems(
+                            new MediaGalleryItemBuilder().setURL(FOOTER_IMAGE_URL)
+                        )
+                    );
+
+                await logChannel.send({
+                    components: [logContainer],
+                    flags: MessageFlags.IsComponentsV2,
+                    allowedMentions: { parse: [] },
+                });
+            }
+
+            const container = new ContainerBuilder()
+                .addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `**Inactivity Notice Logged**\n` +
+                        `**Member:** ${target.user.tag} (${target.id})\n` +
+                        `**Reference:** ${ref}`
+                    )
+                )
+                .addMediaGalleryComponents(
+                    new MediaGalleryBuilder().addItems(
+                        new MediaGalleryItemBuilder().setURL(FOOTER_IMAGE_URL)
+                    )
+                );
+
+            await message.channel.send({
+                components: [container],
+                flags: MessageFlags.IsComponentsV2
+            });
+
+        } catch (error) {
+            console.error(error);
+            await errorReply('Something went wrong while logging that inactivity notice.');
+        }
+    },
+};
