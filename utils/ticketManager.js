@@ -28,6 +28,9 @@ const BTN_CLOSE_CONFIRM = "ticket_close_confirm";
 const BTN_CLOSE_CANCEL = "ticket_close_cancel";
 const BTN_ESCALATE = "ticket_escalate";
 
+const EMOJI_CLOCK = "<:clock:1533146124389585078>";
+const EMOJI_PERSON = "<:person:1502514200705105981>";
+
 /* ------------------------------------------------------------------ *
  *  Small persistent counter so ticket channel names don't collide
  *  even after a restart. Stored in MongoDB (ticketCounters collection)
@@ -52,6 +55,27 @@ async function nextTicketNumber() {
  * ------------------------------------------------------------------ */
 function fill(template, vars) {
     return template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] !== undefined ? vars[key] : ""));
+}
+
+/* ------------------------------------------------------------------ *
+ *  Format a duration in ms as e.g. "2d 4h", "1h 12m", "45s"
+ * ------------------------------------------------------------------ */
+function formatDuration(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const parts = [];
+    if (days) parts.push(`${days}d`);
+    if (hours) parts.push(`${hours}h`);
+    if (minutes) parts.push(`${minutes}m`);
+    // Only show seconds once we're down to the last unit and there's
+    // nothing coarser already making the line noisy.
+    if (!days && !hours) parts.push(`${seconds}s`);
+
+    return parts.length ? parts.join(" ") : "0s";
 }
 
 /* ------------------------------------------------------------------ *
@@ -178,6 +202,27 @@ function buildEscalateContainer(member, staff) {
     const text = fill(config.escalate.text, { user: `${member}`, staff: `${staff}` });
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
     return { container, pingText: fill(config.escalate.pingText, { user: `${member}`, role: roleId ? `<@&${roleId}>` : "" }) };
+}
+
+/* ------------------------------------------------------------------ *
+ *  TRANSCRIPT LOG CONTAINER — sent to the transcript log channel when
+ *  a ticket closes. Components V2, no accent color.
+ * ------------------------------------------------------------------ */
+function buildTranscriptLogContainer({ channelName, openedBy, closedBy, durationMs }) {
+    const container = new ContainerBuilder(); // no .setAccentColor() = no accent color
+
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`## Transcript — #${channelName}`),
+        new TextDisplayBuilder().setContent(
+            [
+                `${EMOJI_CLOCK} Duration: ${formatDuration(durationMs)}`,
+                `${EMOJI_PERSON} Opened by: ${openedBy}`,
+                `${EMOJI_PERSON} Closed by: ${closedBy}`,
+            ].join("\n")
+        )
+    );
+
+    return container;
 }
 
 /* ------------------------------------------------------------------ *
@@ -334,6 +379,27 @@ async function handleButton(interaction) {
 }
 
 /* ------------------------------------------------------------------ *
+ *  PREFIX COMMAND HANDLER -> -close
+ *  Same confirm-then-close flow as the Close button, just triggered by
+ *  a message instead of an interaction. Posts the confirm container as
+ *  a normal channel reply; BTN_CLOSE_CONFIRM / BTN_CLOSE_CANCEL on that
+ *  reply are still interactions and go through handleButton() above
+ *  exactly like the button-triggered flow does.
+ * ------------------------------------------------------------------ */
+async function handleCloseCommand(message) {
+    const category = config.categories.find((c) => message.channel.name?.startsWith(c.channelPrefix));
+    if (!category) {
+        return message.reply("This doesn't look like a ticket channel.");
+    }
+
+    const confirm = buildCloseConfirmContainer();
+    await message.reply({
+        components: [confirm],
+        flags: MessageFlags.IsComponentsV2,
+    });
+}
+
+/* ------------------------------------------------------------------ *
  *  CLOSE + TRANSCRIPT
  * ------------------------------------------------------------------ */
 async function closeTicket(channel, closedBy) {
@@ -348,8 +414,20 @@ async function closeTicket(channel, closedBy) {
         try {
             const logChannel = await channel.guild.channels.fetch(config.ids.transcriptLogChannelId);
             if (logChannel) {
+                const openerId = channel.topic?.match(/opener: (\d+)/)?.[1];
+                const opener = openerId ? await channel.guild.members.fetch(openerId).catch(() => null) : null;
+                const durationMs = Date.now() - channel.createdTimestamp;
+
+                const logContainer = buildTranscriptLogContainer({
+                    channelName: channel.name,
+                    openedBy: opener?.user ?? (opener ?? "Unknown"),
+                    closedBy,
+                    durationMs,
+                });
+
                 await logChannel.send({
-                    content: `Transcript for **#${channel.name}** — closed by ${closedBy}`,
+                    components: [logContainer],
+                    flags: MessageFlags.IsComponentsV2,
                     files: [new AttachmentBuilder(filePath, { name: fileName })],
                 });
             }
@@ -381,4 +459,5 @@ module.exports = {
     buildPanelContainer,
     handleCategorySelect,
     handleButton,
+    handleCloseCommand,
 };
