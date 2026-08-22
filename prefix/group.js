@@ -130,9 +130,7 @@ module.exports = {
 
         const container = new ContainerBuilder()
             .addSectionComponents(section)
-            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
             .addActionRowComponents(buttonRow)
-            .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
             .addMediaGalleryComponents(footerGallery);
 
         const payload = {
