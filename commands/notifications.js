@@ -17,7 +17,7 @@ const CONFIG = {
   panelDescription:
     "Choose the alerts you want to receive and stay informed about everything happening in the server.You can update your preferences anytime by selecting an option again.",
   panelHint:
-    '**View or update your notification preferences anytime by running **/notifications**, **-alerts**, or **-notifications**.**',
+    '**View or update your notification preferences anytime by running **/notifications**, or **-notifications**.**',
   // Full-width banner shown at the bottom of the panel, no text — just the image.
   footerImageURL: 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw',
 
