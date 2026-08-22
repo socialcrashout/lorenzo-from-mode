@@ -17,6 +17,10 @@ const STAFF_FEEDBACK_CHANNEL_ID = "1502529739997446245";
 const BANNER_IMAGE_URL = "https://yumi.onl/api/files/6a697f51721650f7b5eb85c9/raw";
 const FOOTER_IMAGE_URL = "https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw";
 const STAR_EMOJI = "<:Star:1531882389062684792>";
+
+// Only members with this role can run /designer-review — replace with your
+// actual "client" role ID (right-click the role in Server Settings > Roles > Copy ID).
+const CLIENT_ROLE_ID = "1504325227520196639";
 // ──────────────────────────────────────────────────────────
 
 module.exports = {
@@ -41,6 +45,13 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        if (!interaction.member.roles.cache.has(CLIENT_ROLE_ID)) {
+            return interaction.reply({
+                content: "You don't have permission to use this command.",
+                flags: MessageFlags.Ephemeral,
+            });
+        }
+
         const staff = interaction.options.getUser("user");
         const ratingValue = Number(interaction.options.getString("stars"));
         const feedback = interaction.options.getString("reason");

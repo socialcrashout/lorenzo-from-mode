@@ -163,13 +163,9 @@ client.on(Events.InteractionCreate, async interaction => {
             }
             return;
         }
-
-        return;
+        // not a ticket select — fall through to generic dispatch below
     }
 
-    // Buttons (e.g. the .mode verification "Verify"/"Continue" buttons) are
-    // handled here, separately from slash commands, since
-    // isChatInputCommand() would otherwise skip them entirely.
     if (interaction.isButton()) {
         // Ticket system: claim / close / close-confirm / close-cancel / escalate
         const ticketButtonIds = [
@@ -208,8 +204,58 @@ client.on(Events.InteractionCreate, async interaction => {
             }
             return;
         }
+        // not a recognized ticket/verification button — fall through to generic dispatch below
+    }
 
-        return;
+    // Generic dispatch: any select menu, button, or modal submit that wasn't
+    // claimed above gets offered to every loaded slash command's
+    // handleComponent(interaction, client), in case that command recognizes
+    // the customId. This is what /notifications and the support-app
+    // button/modal rely on — without this loop, anything not hardcoded
+    // above just times out with no reply.
+    if (
+        interaction.isStringSelectMenu() ||
+        interaction.isButton() ||
+        interaction.isModalSubmit() ||
+        (interaction.isUserSelectMenu && interaction.isUserSelectMenu()) ||
+        (interaction.isRoleSelectMenu && interaction.isRoleSelectMenu())
+    ) {
+        for (const command of client.slashCommands.values()) {
+            if (typeof command.handleComponent !== "function") continue;
+            try {
+                const handled = await command.handleComponent(interaction, client);
+                if (handled) return;
+            } catch (err) {
+                console.error(`Error in ${command.data?.name}'s handleComponent:`, err);
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({
+                        content: "Something went wrong handling that.",
+                        ephemeral: true,
+                    }).catch(() => {});
+                }
+                return;
+            }
+        }
+
+        // Prefix commands can also export handleComponent (e.g. -supportapp)
+        for (const command of client.commands.values()) {
+            if (typeof command.handleComponent !== "function") continue;
+            try {
+                const handled = await command.handleComponent(interaction, client);
+                if (handled) return;
+            } catch (err) {
+                console.error(`Error in prefix command ${command.name}'s handleComponent:`, err);
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({
+                        content: "Something went wrong handling that.",
+                        ephemeral: true,
+                    }).catch(() => {});
+                }
+                return;
+            }
+        }
+
+        return; // nobody claimed it
     }
 
     if (!interaction.isChatInputCommand()) return;

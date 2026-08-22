@@ -73,7 +73,10 @@ module.exports = {
                 `https://thumbnails.roblox.com/v1/groups/icons?groupIds=${groupId}&size=420x420&format=Png&isCircular=false`
             );
             const iconData = await iconRes.json().catch(() => null);
-            icon = iconData?.data?.[0]?.imageUrl || null;
+            const iconEntry = iconData?.data?.[0];
+            // Only use the icon if Roblox actually finished rendering it —
+            // "Pending"/"Blocked" states return no real imageUrl and show as a blank box.
+            icon = iconEntry?.state === 'Completed' ? iconEntry.imageUrl : null;
         } catch (err) {
             console.error('Failed to fetch Roblox group info:', err);
             if (loadingMsg) await loadingMsg.delete().catch(() => {});
