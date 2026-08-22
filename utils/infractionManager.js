@@ -242,17 +242,19 @@ function buildLogEntry({ eventType, issuerId, targetId, action, reason, infracti
  * Sends the full branded container to INFRACTION_CHANNEL_ID (#infractions),
  * and a compact audit-log entry to INFRACTION_LOG_CHANNEL_ID.
  */
-async function logAction(client, { fullContainer, eventType, issuerId, targetId, action, reason, infractionId }) {
-    try {
-        const channel = await client.channels.fetch(INFRACTION_CHANNEL_ID).catch(() => null);
-        if (channel) {
-            await channel.send({
-                components: [fullContainer],
-                flags: MessageFlags.IsComponentsV2,
-            });
+async function logAction(client, { fullContainer, eventType, issuerId, targetId, action, reason, infractionId, skipChannelPost }) {
+    if (!skipChannelPost) {
+        try {
+            const channel = await client.channels.fetch(INFRACTION_CHANNEL_ID).catch(() => null);
+            if (channel) {
+                await channel.send({
+                    components: [fullContainer],
+                    flags: MessageFlags.IsComponentsV2,
+                });
+            }
+        } catch (err) {
+            console.error('Failed to post to infraction channel:', err);
         }
-    } catch (err) {
-        console.error('Failed to post to infraction channel:', err);
     }
 
     try {

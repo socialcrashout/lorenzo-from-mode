@@ -136,9 +136,19 @@ async function handleIssue(interaction, client) {
 
     const dmSent = await tryDM(client, targetUser.id, container);
 
-    await interaction.editReply({
-        content: `Infraction issued — logged in <#${INFRACTION_CHANNEL_ID}>.`,
-    });
+    const runInInfractionChannel = interaction.channelId === INFRACTION_CHANNEL_ID;
+
+    if (runInInfractionChannel) {
+        // Already in #infractions — show the full embed once, no separate confirmation needed.
+        await interaction.editReply({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2,
+        });
+    } else {
+        await interaction.editReply({
+            content: `Infraction issued — logged in <#${INFRACTION_CHANNEL_ID}>.`,
+        });
+    }
 
     if (!dmSent) {
         await interaction.followUp({ content: `Note: I couldn't DM <@${targetUser.id}> (their DMs may be closed).`, ephemeral: true });
@@ -152,6 +162,7 @@ async function handleIssue(interaction, client) {
         action,
         reason,
         infractionId: infraction.infractionId,
+        skipChannelPost: runInInfractionChannel,
     });
 }
 
@@ -225,9 +236,18 @@ async function handleEdit(interaction, client) {
 
     const dmSent = await tryDM(client, infraction.userId, container);
 
-    await interaction.editReply({
-        content: `Infraction \`${infraction.infractionId}\` edited — logged in <#${INFRACTION_CHANNEL_ID}>.`,
-    });
+    const runInInfractionChannel = interaction.channelId === INFRACTION_CHANNEL_ID;
+
+    if (runInInfractionChannel) {
+        await interaction.editReply({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2,
+        });
+    } else {
+        await interaction.editReply({
+            content: `Infraction \`${infraction.infractionId}\` edited — logged in <#${INFRACTION_CHANNEL_ID}>.`,
+        });
+    }
 
     if (!dmSent) {
         await interaction.followUp({ content: `Note: I couldn't DM <@${infraction.userId}> (their DMs may be closed).`, ephemeral: true });
@@ -241,6 +261,7 @@ async function handleEdit(interaction, client) {
         action: infraction.action,
         reason: infraction.reason,
         infractionId: infraction.infractionId,
+        skipChannelPost: runInInfractionChannel,
     });
 }
 
@@ -280,9 +301,18 @@ async function handleVoid(interaction, client) {
 
     const dmSent = await tryDM(client, infraction.userId, container);
 
-    await interaction.editReply({
-        content: `Infraction \`${infraction.infractionId}\` voided — logged in <#${INFRACTION_CHANNEL_ID}>.`,
-    });
+    const runInInfractionChannel = interaction.channelId === INFRACTION_CHANNEL_ID;
+
+    if (runInInfractionChannel) {
+        await interaction.editReply({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2,
+        });
+    } else {
+        await interaction.editReply({
+            content: `Infraction \`${infraction.infractionId}\` voided — logged in <#${INFRACTION_CHANNEL_ID}>.`,
+        });
+    }
 
     if (!dmSent) {
         await interaction.followUp({ content: `Note: I couldn't DM <@${infraction.userId}> (their DMs may be closed).`, ephemeral: true });
@@ -296,6 +326,7 @@ async function handleVoid(interaction, client) {
         action: infraction.action,
         reason: voidReason,
         infractionId: infraction.infractionId,
+        skipChannelPost: runInInfractionChannel,
     });
 }
 
