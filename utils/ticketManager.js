@@ -14,6 +14,7 @@ const {
     MessageFlags,
     AttachmentBuilder,
     ChannelType,
+    FileBuilder,
 } = require("discord.js");
 
 const config = require("../config");
@@ -128,14 +129,8 @@ function buildPanelContainer() {
 /* ------------------------------------------------------------------ *
  *  TICKET WELCOME CONTAINER (sent inside the new ticket channel)
  * ------------------------------------------------------------------ */
-const COLOR_CLAIMED = 0x57f287; // Discord "green" — shown once a ticket is claimed
-
 function buildTicketContainer(member, category, { claimed = null, escalated = false } = {}) {
-    const container = new ContainerBuilder();
-
-    if (claimed) {
-        container.setAccentColor(COLOR_CLAIMED);
-    }
+    const container = new ContainerBuilder(); // no .setAccentColor() = no accent color, even once claimed
 
     if (config.ticket.bannerUrl) {
         container.addMediaGalleryComponents(
@@ -174,10 +169,19 @@ function buildTicketContainer(member, category, { claimed = null, escalated = fa
 }
 
 function buildClaimConfirmContainer(claimedBy) {
-    const container = new ContainerBuilder();
-    container.setAccentColor(COLOR_CLAIMED);
+    const container = new ContainerBuilder(); // no accent color
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(`✅ You claimed this ticket, ${claimedBy}.`)
+    );
+    return container;
+}
+
+function buildAssistingContainer(claimedBy) {
+    const container = new ContainerBuilder(); // no accent color
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            `${EMOJI_PERSON} ${claimedBy} will be assisting you today. Please give them a moment to review your query.`
+        )
     );
     return container;
 }
@@ -208,7 +212,7 @@ function buildEscalateContainer(member, staff) {
  *  TRANSCRIPT LOG CONTAINER — sent to the transcript log channel when
  *  a ticket closes. Components V2, no accent color.
  * ------------------------------------------------------------------ */
-function buildTranscriptLogContainer({ channelName, openedBy, closedBy, durationMs }) {
+function buildTranscriptLogContainer({ channelName, openedBy, closedBy, durationMs, fileName }) {
     const container = new ContainerBuilder(); // no .setAccentColor() = no accent color
 
     container.addTextDisplayComponents(
@@ -221,6 +225,15 @@ function buildTranscriptLogContainer({ channelName, openedBy, closedBy, duration
             ].join("\n")
         )
     );
+
+    if (fileName) {
+        // Components V2 messages don't auto-render plain `files` attachments —
+        // they only show up if referenced inside a component via the
+        // attachment:// URI. Without this, the transcript silently vanishes
+        // from the message even though it's still technically attached.
+        container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
+        container.addFileComponents(new FileBuilder().setURL(`attachment://${fileName}`));
+    }
 
     return container;
 }
@@ -315,6 +328,14 @@ async function handleButton(interaction) {
 
             const container = buildTicketContainer(opener?.user || "the ticket opener", category, { claimed: interaction.user });
             await interaction.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+
+            // Public message in the ticket channel so the opener knows
+            // someone's on it — separate from the ephemeral confirm below,
+            // which is just for the staff member who clicked Claim.
+            await channel.send({
+                components: [buildAssistingContainer(interaction.user)],
+                flags: MessageFlags.IsComponentsV2,
+            });
 
             await interaction.followUp({
                 components: [buildClaimConfirmContainer(interaction.user)],
@@ -423,6 +444,7 @@ async function closeTicket(channel, closedBy) {
                     openedBy: opener?.user ?? (opener ?? "Unknown"),
                     closedBy,
                     durationMs,
+                    fileName,
                 });
 
                 await logChannel.send({
