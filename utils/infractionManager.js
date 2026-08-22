@@ -57,7 +57,7 @@ const infractionSchema = new mongoose.Schema({
 const Infraction = mongoose.models.Infraction || mongoose.model('Infraction', infractionSchema);
 
 // ── Hardcoded branding ──────────────────────────────────────────
-const BANNER_URL = 'https://yumi.onl/f/6a8913c75e31802b96271546';
+const BANNER_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw';
 const FOOTER_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw';
 
 // ── Hardcoded emojis (from the format you supplied) ─────────────
