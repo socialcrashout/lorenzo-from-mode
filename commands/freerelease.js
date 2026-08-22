@@ -2,7 +2,6 @@ const {
     SlashCommandBuilder,
     ContainerBuilder,
     TextDisplayBuilder,
-    SeparatorBuilder,
     MediaGalleryBuilder,
     MediaGalleryItemBuilder,
     FileBuilder,
@@ -10,8 +9,10 @@ const {
     MessageFlags,
 } = require('discord.js');
 
-// Hardcoded banner shown at the top of every free release post
-const BANNER_URL = 'https://yumi.onl/api/files/6a89ee96f83791efda3e51ef/raw';
+// Hardcoded footer image shown at the bottom of every free release post
+const FOOTER_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw';
+// Role to ping in the greeting line
+const FREE_RELEASE_ROLE_ID = '1524635367813283840';
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -43,13 +44,6 @@ module.exports = {
         const container = new ContainerBuilder();
         // No .setAccentColor() call -> no accent color on the container
 
-        // Banner
-        container.addMediaGalleryComponents(
-            new MediaGalleryBuilder().addItems(
-                new MediaGalleryItemBuilder().setURL(BANNER_URL)
-            )
-        );
-
         // Header
         container.addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
@@ -60,7 +54,7 @@ module.exports = {
         // Body
         container.addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                `Hello ${interaction.user},\n\n` +
+                `Hello <@&${FREE_RELEASE_ROLE_ID}>,\n\n` +
                 `Check out our latest free release! Feel free to use it in your server, project, or community. All we ask is that you provide credit if someone asks who created or provided it.\n\n` +
                 `**Provided by:** ${designer}`
             )
@@ -68,7 +62,6 @@ module.exports = {
 
         // Optional preview image
         if (previewImage) {
-            container.addSeparatorComponents(new SeparatorBuilder());
             container.addTextDisplayComponents(
                 new TextDisplayBuilder().setContent('**Preview:**')
             );
@@ -79,12 +72,17 @@ module.exports = {
             );
         }
 
-        container.addSeparatorComponents(new SeparatorBuilder());
-
         // The actual release file, attached to the message and referenced in the container
         const attachment = new AttachmentBuilder(file.url, { name: file.name });
         container.addFileComponents(
             new FileBuilder().setURL(`attachment://${file.name}`)
+        );
+
+        // Footer image
+        container.addMediaGalleryComponents(
+            new MediaGalleryBuilder().addItems(
+                new MediaGalleryItemBuilder().setURL(FOOTER_URL)
+            )
         );
 
         await interaction.editReply({
