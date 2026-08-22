@@ -20,6 +20,7 @@
     "groq-sdk": "^1.5.0",
     "https-proxy-agent": "^9.1.0",
     "mongodb": "^7.5.0",
+    "mongoose": "^9.9.3",
     "noblox.js": "^9.0.0",
     "node-fetch": "^3.3.2",
     "pg": "^8.22.0",
@@ -28,5 +29,13 @@
   "devDependencies": {
     "chokidar": "^5.0.0",
     "nodemon": "^3.1.14"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/socialcrashout/discord-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/socialcrashout/discord-bot/issues"
+  },
+  "homepage": "https://github.com/socialcrashout/discord-bot#readme"
 }
