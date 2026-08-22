@@ -13,7 +13,7 @@ const {
 } = require('../utils/infractionManager');
 
 // ── Role lock — add the role ID(s) allowed to use this command ──
-const STAFF_ROLE_IDS = ['u can change this if u want'];
+const STAFF_ROLE_IDS = ['1504311819458580531', '1504313264576925757', '1504312910862880879'];
 
 const ACTION_CHOICES = [
     { name: 'Notice', value: 'Notice' },
