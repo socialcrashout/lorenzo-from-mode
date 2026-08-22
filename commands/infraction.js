@@ -10,6 +10,7 @@ const {
     buildInfractionContainer,
     buildHistoryContainer,
     logAction,
+    INFRACTION_CHANNEL_ID,
 } = require('../utils/infractionManager');
 
 // ── Role lock — add the role ID(s) allowed to use this command ──
@@ -68,7 +69,7 @@ module.exports = {
         .addSubcommand(sub =>
             sub.setName('edit')
                 .setDescription('Edit an existing infraction.')
-                .addStringOption(o => o.setName('infraction_id').setDescription('The infraction ID, e.g. INF-1234567').setRequired(true))
+                .addStringOption(o => o.setName('infraction_id').setDescription('The infraction ID, e.g. MD-7K3X9Q').setRequired(true))
                 .addStringOption(o => o.setName('action').setDescription('New action.').addChoices(...ACTION_CHOICES))
                 .addStringOption(o => o.setName('reason').setDescription('New reason.'))
                 .addBooleanOption(o => o.setName('appealable').setDescription('New appealable status.'))
@@ -76,7 +77,7 @@ module.exports = {
         .addSubcommand(sub =>
             sub.setName('void')
                 .setDescription('Void an existing infraction.')
-                .addStringOption(o => o.setName('infraction_id').setDescription('The infraction ID, e.g. INF-1234567').setRequired(true))
+                .addStringOption(o => o.setName('infraction_id').setDescription('The infraction ID, e.g. MD-7K3X9Q').setRequired(true))
                 .addStringOption(o => o.setName('reason').setDescription('Reason for voiding.').setRequired(false))
         )
         .addSubcommand(sub =>
@@ -107,7 +108,7 @@ async function handleIssue(interaction, client) {
     const reason = interaction.options.getString('reason', true);
     const appealable = interaction.options.getBoolean('appealable', true);
 
-    const infractionId = generateInfractionId();
+    const infractionId = await generateInfractionId();
 
     const infraction = await Infraction.create({
         guildId: interaction.guildId,
@@ -136,8 +137,7 @@ async function handleIssue(interaction, client) {
     const dmSent = await tryDM(client, targetUser.id, container);
 
     await interaction.editReply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
+        content: `Infraction issued — logged in <#${INFRACTION_CHANNEL_ID}>.`,
     });
 
     if (!dmSent) {
@@ -226,8 +226,7 @@ async function handleEdit(interaction, client) {
     const dmSent = await tryDM(client, infraction.userId, container);
 
     await interaction.editReply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
+        content: `Infraction \`${infraction.infractionId}\` edited — logged in <#${INFRACTION_CHANNEL_ID}>.`,
     });
 
     if (!dmSent) {
@@ -282,8 +281,7 @@ async function handleVoid(interaction, client) {
     const dmSent = await tryDM(client, infraction.userId, container);
 
     await interaction.editReply({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
+        content: `Infraction \`${infraction.infractionId}\` voided — logged in <#${INFRACTION_CHANNEL_ID}>.`,
     });
 
     if (!dmSent) {

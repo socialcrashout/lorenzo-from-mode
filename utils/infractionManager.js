@@ -60,7 +60,7 @@ const FOOTER_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw';
 const BRAND_EMOJI = '<:mode_branding_20260510_032226_00:1506790198917206156>';
 const DOT = '<:Dot:1502513706347528213>';
 
-// ── Channels — change these to your actual channel IDs ──────────
+// ── Channels ──────────────────────────────────────────────────
 const INFRACTION_LOG_CHANNEL_ID = '1506450870269906944';
 const INFRACTION_CHANNEL_ID = '1502777824505761972';
 
@@ -96,9 +96,24 @@ async function tryDM(client, userId, container) {
     }
 }
 
-function generateInfractionId() {
-    const num = Math.floor(1000000 + Math.random() * 9000000); // 7 digits
-    return `INF-${num}`;
+// Generates a short, non-sequential ID like MD-7K3X9Q.
+// Retries on the rare chance of a collision with an existing infraction.
+async function generateInfractionId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars[Math.floor(Math.random() * chars.length)];
+        }
+        const id = `MD-${code}`;
+
+        const existing = await Infraction.findOne({ infractionId: id }).lean();
+        if (!existing) return id;
+    }
+
+    // Extremely unlikely fallback if 5 collisions happen in a row.
+    return `MD-${Date.now().toString(36).toUpperCase()}`;
 }
 
 function fieldLine(label, value) {
@@ -224,9 +239,8 @@ function buildLogEntry({ eventType, issuerId, targetId, action, reason, infracti
 }
 
 /**
- * Sends the full branded container to INFRACTION_CHANNEL_ID (the mirror
- * of what the user got DM'd / what shows in the reply), and a compact
- * audit-log entry to INFRACTION_LOG_CHANNEL_ID.
+ * Sends the full branded container to INFRACTION_CHANNEL_ID (#infractions),
+ * and a compact audit-log entry to INFRACTION_LOG_CHANNEL_ID.
  */
 async function logAction(client, { fullContainer, eventType, issuerId, targetId, action, reason, infractionId }) {
     try {
