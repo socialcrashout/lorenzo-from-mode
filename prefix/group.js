@@ -8,6 +8,8 @@ const {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
+    MediaGalleryBuilder,
+    MediaGalleryItemBuilder,
     MessageFlags,
 } = require('discord.js');
 
@@ -119,16 +121,16 @@ module.exports = {
                 .setURL(groupUrl)
         );
 
-        const footerSection = new SectionBuilder()
-            .setThumbnailAccessory(new ThumbnailBuilder().setURL(FOOTER_IMAGE))
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent('-# .mode • Group Info'));
+        const footerGallery = new MediaGalleryBuilder().addItems(
+            new MediaGalleryItemBuilder().setURL(FOOTER_IMAGE)
+        );
 
         const container = new ContainerBuilder()
             .addSectionComponents(section)
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
             .addActionRowComponents(buttonRow)
             .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
-            .addSectionComponents(footerSection);
+            .addMediaGalleryComponents(footerGallery);
 
         const payload = {
             components: [container],
