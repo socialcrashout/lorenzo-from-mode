@@ -6,6 +6,7 @@ const {
     MediaGalleryBuilder,
     MediaGalleryItemBuilder,
     MessageFlags,
+    PermissionFlagsBits,
 } = require('discord.js');
 const mongoose = require('mongoose');
 
@@ -60,8 +61,40 @@ const BRAND_EMOJI = '<:mode_branding_20260510_032226_00:1506790198917206156>';
 const DOT = '<:Dot:1502513706347528213>';
 
 // ── Channels — change these to your actual channel IDs ──────────
-const INFRACTION_LOG_CHANNEL_ID = '1506450870269906944';
-const INFRACTION_CHANNEL_ID = '1502777824505761972';
+const INFRACTION_LOG_CHANNEL_ID = 'u can change this if u want';
+const INFRACTION_CHANNEL_ID = 'u can change this if u want too';
+
+// ── Role lock — add the role ID(s) allowed to use infraction commands ──
+const STAFF_ROLE_IDS = ['u can change this if u want'];
+
+function isStaff(member) {
+    if (!member) return false;
+    if (member.permissions?.has(PermissionFlagsBits.Administrator)) return true;
+    return member.roles.cache.some(r => STAFF_ROLE_IDS.includes(r.id));
+}
+
+async function denyNoPermission(interaction) {
+    return interaction.reply({
+        content: 'You do not have permission to use this command.',
+        ephemeral: true,
+    });
+}
+
+// Attempts to DM the affected user a copy of the infraction container.
+// Silently fails (returns false) if their DMs are closed — never throws,
+// so it can't break the command.
+async function tryDM(client, userId, container) {
+    try {
+        const user = await client.users.fetch(userId);
+        await user.send({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2,
+        });
+        return true;
+    } catch (err) {
+        return false;
+    }
+}
 
 function generateInfractionId() {
     const num = Math.floor(1000000 + Math.random() * 9000000); // 7 digits
@@ -229,6 +262,10 @@ module.exports = {
     buildHistoryContainer,
     buildLogEntry,
     logAction,
+    isStaff,
+    denyNoPermission,
+    tryDM,
+    STAFF_ROLE_IDS,
     BRAND_EMOJI,
     DOT,
     BANNER_URL,
