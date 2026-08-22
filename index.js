@@ -207,12 +207,6 @@ client.on(Events.InteractionCreate, async interaction => {
         // not a recognized ticket/verification button — fall through to generic dispatch below
     }
 
-    // Generic dispatch: any select menu, button, or modal submit that wasn't
-    // claimed above gets offered to every loaded slash command's
-    // handleComponent(interaction, client), in case that command recognizes
-    // the customId. This is what /notifications and the support-app
-    // button/modal rely on — without this loop, anything not hardcoded
-    // above just times out with no reply.
     if (
         interaction.isStringSelectMenu() ||
         interaction.isButton() ||
@@ -314,7 +308,6 @@ client.on(Events.GuildMemberRemove, async member => {
     await updateMemberCount(member.guild);
 });
 
-// ── Startup ──────────────────────────────────────────────────
 async function start() {
     await connectDB(); // connect to MongoDB before anything else runs
 
