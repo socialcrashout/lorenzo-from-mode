@@ -47,6 +47,10 @@ const infractionSchema = new mongoose.Schema({
 
     editHistory: { type: [editLogSchema], default: [] },
 
+    // ID of the message in INFRACTION_CHANNEL_ID that shows this infraction's
+    // embed, so later edits/voids can update it in place instead of posting new.
+    messageId: { type: String, default: null },
+
     createdAt: { type: Date, default: Date.now },
 }, { versionKey: false });
 
@@ -239,28 +243,55 @@ function buildLogEntry({ eventType, issuerId, targetId, action, reason, infracti
 }
 
 /**
- * Sends the full branded container to INFRACTION_CHANNEL_ID (#infractions),
- * and a compact audit-log entry to INFRACTION_LOG_CHANNEL_ID.
+ * Posts or updates the full branded embed in INFRACTION_CHANNEL_ID:
+ * - If this infraction has no stored messageId yet (first time / 'Issued'),
+ *   sends a new message and remembers its ID on the infraction doc.
+ * - Otherwise, edits that existing message in place (no new embed posted).
+ * - If the original message was deleted, falls back to sending a new one
+ *   and updates the stored ID.
+ * Also posts a compact audit-log entry to INFRACTION_LOG_CHANNEL_ID (always
+ * a new message there, since that's just a running log).
+ *
+ * `infraction` must be the mongoose document (not just the ID string) so
+ * messageId can be persisted.
  */
-async function logAction(client, { fullContainer, eventType, issuerId, targetId, action, reason, infractionId, skipChannelPost }) {
-    if (!skipChannelPost) {
-        try {
-            const channel = await client.channels.fetch(INFRACTION_CHANNEL_ID).catch(() => null);
-            if (channel) {
-                await channel.send({
+async function logAction(client, { fullContainer, eventType, issuerId, targetId, action, reason, infraction }) {
+    try {
+        const channel = await client.channels.fetch(INFRACTION_CHANNEL_ID).catch(() => null);
+        if (channel) {
+            if (infraction.messageId) {
+                try {
+                    const existingMessage = await channel.messages.fetch(infraction.messageId);
+                    await existingMessage.edit({
+                        components: [fullContainer],
+                        flags: MessageFlags.IsComponentsV2,
+                    });
+                } catch (err) {
+                    // Original message is gone (deleted, etc.) — post a fresh one.
+                    const sent = await channel.send({
+                        components: [fullContainer],
+                        flags: MessageFlags.IsComponentsV2,
+                    });
+                    infraction.messageId = sent.id;
+                    await infraction.save();
+                }
+            } else {
+                const sent = await channel.send({
                     components: [fullContainer],
                     flags: MessageFlags.IsComponentsV2,
                 });
+                infraction.messageId = sent.id;
+                await infraction.save();
             }
-        } catch (err) {
-            console.error('Failed to post to infraction channel:', err);
         }
+    } catch (err) {
+        console.error('Failed to post/update infraction channel message:', err);
     }
 
     try {
         const logChannel = await client.channels.fetch(INFRACTION_LOG_CHANNEL_ID).catch(() => null);
         if (logChannel) {
-            const logContainer = buildLogEntry({ eventType, issuerId, targetId, action, reason, infractionId });
+            const logContainer = buildLogEntry({ eventType, issuerId, targetId, action, reason, infractionId: infraction.infractionId });
             await logChannel.send({
                 components: [logContainer],
                 flags: MessageFlags.IsComponentsV2,
