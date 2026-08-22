@@ -61,11 +61,11 @@ const BRAND_EMOJI = '<:mode_branding_20260510_032226_00:1506790198917206156>';
 const DOT = '<:Dot:1502513706347528213>';
 
 // ── Channels — change these to your actual channel IDs ──────────
-const INFRACTION_LOG_CHANNEL_ID = 'u can change this if u want';
-const INFRACTION_CHANNEL_ID = 'u can change this if u want too';
+const INFRACTION_LOG_CHANNEL_ID = '1506450870269906944';
+const INFRACTION_CHANNEL_ID = '1502777824505761972';
 
 // ── Role lock — add the role ID(s) allowed to use infraction commands ──
-const STAFF_ROLE_IDS = ['u can change this if u want'];
+const STAFF_ROLE_IDS = ['1504311819458580531', '1504313264576925757', '1504312910862880879'];
 
 function isStaff(member) {
     if (!member) return false;
