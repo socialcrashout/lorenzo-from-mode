@@ -12,7 +12,7 @@ const {
 // Hardcoded footer image shown at the bottom of every free release post
 const FOOTER_URL = 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw';
 // Role to ping in the greeting line
-const FREE_RELEASE_ROLE_ID = '1504311819458580531';
+const FREE_RELEASE_ROLE_ID = '1524635367813283840';
 
 // Channel the release always gets posted in, regardless of where the command is run
 const TARGET_CHANNEL_ID = '1502526424505123008';
