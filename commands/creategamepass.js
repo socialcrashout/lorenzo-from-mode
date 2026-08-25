@@ -1,7 +1,22 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const {
+    SlashCommandBuilder,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SectionBuilder,
+    ThumbnailBuilder,
+    MessageFlags,
+} = require('discord.js');
 
 const ROBLOX_API_KEY = process.env.ROBLOX_GAMEPASS_API_KEY;
 const UNIVERSE_ID = process.env.ROBLOX_UNIVERSE_ID;
+
+const LOG_CHANNEL_ID = '1506450870269906944';
+
+const ALLOWED_ROLE_IDS = [
+    '1504311819458580531',
+    '1504312910862880879',
+    '1541545207454105660'
+]; // replace with the roles that should be allowed to use this specific command
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -32,14 +47,22 @@ module.exports = {
     async execute(interaction, client) {
         if (interaction.options.getSubcommand() !== 'gamepass') return;
 
-        if (!ROBLOX_API_KEY || !UNIVERSE_ID) {
-            return interaction.reply({
-                content: 'Missing `ROBLOX_GAMEPASS_API_KEY` or `ROBLOX_UNIVERSE_ID` in .env.',
-                ephemeral: true
-            });
+        const errorReply = (text) => interaction.reply({
+            components: [
+                new ContainerBuilder().addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(text)
+                )
+            ],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        });
+
+        if (!ALLOWED_ROLE_IDS.some(roleId => interaction.member.roles.cache.has(roleId))) {
+            return errorReply('You do not have the required role to use this command.');
         }
 
-        await interaction.deferReply();
+        if (!ROBLOX_API_KEY || !UNIVERSE_ID) {
+            return errorReply('Missing `ROBLOX_GAMEPASS_API_KEY` or `ROBLOX_UNIVERSE_ID` in .env.');
+        }
 
         const logo = interaction.options.getAttachment('logo');
         const name = interaction.options.getString('name');
@@ -47,11 +70,12 @@ module.exports = {
         const regionalPrice = interaction.options.getBoolean('regional_price');
 
         if (!logo.contentType || !logo.contentType.startsWith('image/')) {
-            return interaction.editReply('The logo attachment must be an image.');
+            return errorReply('The logo attachment must be an image.');
         }
 
+        await interaction.deferReply();
+
         try {
-            // Download the logo so we can re-upload it to Roblox
             const imgRes = await fetch(logo.url);
             if (!imgRes.ok) throw new Error(`Failed to download logo (${imgRes.status})`);
             const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
@@ -76,32 +100,80 @@ module.exports = {
 
             if (!res.ok) {
                 console.error('Roblox gamepass create error:', data);
-                return interaction.editReply(
-                    `Failed to create gamepass: ${data.errorMessage || data.message || res.status}`
-                );
+                return interaction.editReply({
+                    components: [
+                        new ContainerBuilder().addTextDisplayComponents(
+                            new TextDisplayBuilder().setContent(
+                                `Failed to create gamepass: ${data.errorMessage || data.message || res.status}`
+                            )
+                        )
+                    ],
+                    flags: MessageFlags.IsComponentsV2,
+                });
             }
 
             const gamePassId = data.gamePassId;
             const slug = encodeURIComponent(name.replace(/\s+/g, '-'));
             const link = `https://www.roblox.com/game-pass/${gamePassId}/${slug}`;
+            const timestamp = Math.floor(Date.now() / 1000);
 
-            const embed = new EmbedBuilder()
-                .setTitle('Gamepass Created')
-                .setColor(0x00ff88)
-                .addFields(
-                    { name: 'Name', value: name, inline: true },
-                    { name: 'Price', value: `${price} R$`, inline: true },
-                    { name: 'Regional Pricing', value: regionalPrice ? 'Enabled' : 'Disabled', inline: true },
-                    { name: 'Gamepass ID', value: `${gamePassId}`, inline: true },
-                    { name: 'Link', value: link }
-                )
-                .setThumbnail(logo.url)
-                .setTimestamp();
+            const resultContainer = new ContainerBuilder()
+                .addSectionComponents(
+                    new SectionBuilder()
+                        .addTextDisplayComponents(
+                            new TextDisplayBuilder().setContent(
+                                `## Gamepass Created\n` +
+                                `**Name**\n${name}\n\n` +
+                                `**Price**\n${price} R$\n\n` +
+                                `**Regional Pricing**\n${regionalPrice ? 'Enabled' : 'Disabled'}\n\n` +
+                                `**Gamepass ID**\n${gamePassId}\n\n` +
+                                `**Link**\n${link}\n\n` +
+                                `-# <t:${timestamp}:f>`
+                            )
+                        )
+                        .setThumbnailAccessory(
+                            new ThumbnailBuilder().setURL(logo.url)
+                        )
+                );
 
-            return interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({
+                components: [resultContainer],
+                flags: MessageFlags.IsComponentsV2,
+            });
+
+            const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+            if (logChannel) {
+                const logContainer = new ContainerBuilder().addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(
+                        `## Gamepass Created\n` +
+                        `**Used By:** ${interaction.user}\n` +
+                        `**Name:** ${name}\n` +
+                        `**Price:** ${price} R$\n` +
+                        `**Regional Pricing:** ${regionalPrice ? 'Enabled' : 'Disabled'}\n` +
+                        `**Gamepass ID:** ${gamePassId}\n` +
+                        `**Link:** ${link}\n` +
+                        `**Timestamp:** <t:${timestamp}:F>`
+                    )
+                );
+
+                await logChannel.send({
+                    components: [logContainer],
+                    flags: MessageFlags.IsComponentsV2,
+                    allowedMentions: { parse: [] },
+                });
+            }
         } catch (err) {
             console.error('Error creating gamepass:', err);
-            return interaction.editReply('Something went wrong creating the gamepass. Check the console logs.');
+            await interaction.editReply({
+                components: [
+                    new ContainerBuilder().addTextDisplayComponents(
+                        new TextDisplayBuilder().setContent(
+                            'Something went wrong creating the gamepass. Check the console logs.'
+                        )
+                    )
+                ],
+                flags: MessageFlags.IsComponentsV2,
+            });
         }
     }
 };
