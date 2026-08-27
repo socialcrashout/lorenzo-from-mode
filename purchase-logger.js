@@ -6,12 +6,13 @@ const {
   TextDisplayBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
-  SectionBuilder,
-  ThumbnailBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
   MessageFlags,
 } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+// Uses Node's built-in global fetch (Node 18+) — no node-fetch package needed.
 
 // ---------------- CONFIG ----------------
 // Secrets load from .env (see .env.example) — never hardcode tokens/cookies here.
@@ -21,8 +22,6 @@ const CONFIG = {
 
   groupId: process.env.GROUP_ID,
   robloSecurityCookie: process.env.ROBLOX_COOKIE,
-
-  dockApiKey: process.env.DOCK_API_KEY, // from your Dock dashboard, once we have the endpoint details
 
   pollIntervalMs: 60_000, // check for new sales every 60s
 
@@ -34,8 +33,7 @@ const CONFIG = {
   },
 
   color: 0xf5a623, // unused now (Components V2 container has no accent color set)
-  // Footer shows only this icon, no text (Discord embeds require a non-empty
-  // footer text field, so a zero-width space is used behind the scenes).
+  // Footer image, shown full-width via a Media Gallery component.
   footerIconUrl: 'https://yumi.onl/api/files/6a6974fa91bbc4fb21f03ab5/raw',
 };
 
@@ -49,24 +47,6 @@ function loadState() {
 
 function saveState(state) {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
-}
-
-// Looks up a Discord ID for a given Roblox user ID via Dock (docksys.xyz).
-// PLACEHOLDER: swap in Dock's real endpoint/response shape once you grab it
-// from your Dock dashboard's API/developer section.
-async function getDiscordId(robloxUserId) {
-  try {
-    const res = await fetch(
-      `https://docksys.xyz/api/lookup/roblox/${robloxUserId}`, // <-- confirm this path
-      { headers: { Authorization: `Bearer ${CONFIG.dockApiKey}` } } // <-- confirm auth scheme
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.discordId || null; // <-- confirm response field name
-  } catch (err) {
-    console.error('Dock lookup failed:', err.message);
-    return null;
-  }
 }
 
 // Fetches one page of group sale transactions from Roblox.
@@ -100,12 +80,9 @@ async function postThankYou(channel, tx) {
     url: `https://www.roblox.com/game-pass/${details.id}`,
   };
 
-  const discordId = await getDiscordId(buyer.id);
-  const mention = discordId ? `<@${discordId}>` : `**${buyer.name}**`;
-
   const bodyText =
     `## <:confetti:1502514534298943509> New Purchase\n` +
-    `We'd like to give a big thank you to ${mention} for purchasing our ` +
+    `We'd like to give a big thank you to **${buyer.name}** for purchasing our ` +
     `**[${passInfo.name}](${passInfo.url})**! Your support means a lot to us and ` +
     `helps us continue developing new features, hosting giveaways, and improving what we offer.`;
 
@@ -116,15 +93,14 @@ async function postThankYou(channel, tx) {
     );
 
   if (CONFIG.footerIconUrl) {
-    container.addSectionComponents(
-      new SectionBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent('\u200b'))
-        .setThumbnailAccessory(new ThumbnailBuilder().setURL(CONFIG.footerIconUrl))
+    container.addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(
+        new MediaGalleryItemBuilder().setURL(CONFIG.footerIconUrl)
+      )
     );
   }
 
   await channel.send({
-    content: discordId ? `<@${discordId}>` : undefined,
     components: [container],
     flags: MessageFlags.IsComponentsV2,
   });
