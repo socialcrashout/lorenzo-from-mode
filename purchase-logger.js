@@ -20,7 +20,7 @@ const CONFIG = {
   channelId: '1502517147673563266',
 
   groupId: process.env.GROUP_ID,
-  robloSecurityCookie: process.env.ROBLOSECURITY_COOKIE,
+  robloSecurityCookie: process.env.ROBLOX_COOKIE,
 
   dockApiKey: process.env.DOCK_API_KEY, // from your Dock dashboard, once we have the endpoint details
 
