@@ -131,9 +131,10 @@ async function postThankYou(channel, tx) {
   });
 }
 
+// Every "Sale" transaction returned by Roblox for this group is a real
+// purchase (Game Pass or Developer Product) — no need to filter by type.
 function isGamepassSale(tx) {
-  const type = (tx.details?.type || '').toLowerCase();
-  return type.includes('pass'); // matches "Game Pass" / "GamePass"
+  return true;
 }
 
 // One-time backfill: walks every page of the group's sale history and posts
@@ -155,7 +156,7 @@ async function runBackfill(channel) {
       break;
     }
 
-    const pageSales = (data.data || []).filter(isGamepassSale).reverse(); // oldest first
+    const pageSales = (data.data || []).reverse(); // oldest first
 
     for (const tx of pageSales) {
       try {
@@ -196,15 +197,7 @@ async function checkForNewSales() {
 
   const allFetched = (data.data || []).filter((tx) => !state.seenIds.includes(tx.id));
 
-  const newSales = allFetched
-    .filter((tx) => {
-      const isGamepass = isGamepassSale(tx);
-      if (!isGamepass) {
-        console.log(`Skipping non-gamepass sale, details.type = "${tx.details?.type}"`);
-      }
-      return isGamepass;
-    })
-    .reverse(); // oldest first, so messages post in order
+  const newSales = allFetched.reverse(); // oldest first, so messages post in order
 
   // Mark every fetched transaction as seen, even skipped ones, so they
   // aren't re-checked (and re-logged) on the next poll.
