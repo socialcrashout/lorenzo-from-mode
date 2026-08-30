@@ -1,4 +1,3 @@
-// commands/orderstatus.js
 const {
   SlashCommandBuilder,
   ContainerBuilder,
