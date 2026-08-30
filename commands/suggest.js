@@ -170,12 +170,19 @@ module.exports = {
 
         const container = buildContainer(draft);
 
+        let thread;
         let message;
         try {
-            message = await targetChannel.send({
-                flags: MessageFlags.IsComponentsV2,
-                components: [container],
+            thread = await targetChannel.threads.create({
+                name: `Suggestion #${number}`,
+                autoArchiveDuration: 1440,
+                reason: `New suggestion #${number}`,
+                message: {
+                    flags: MessageFlags.IsComponentsV2,
+                    components: [container],
+                },
             });
+            message = await thread.fetchStarterMessage();
         } catch (err) {
             client?.logs?.error('Failed to post suggestion message:', err) ?? console.error(err);
             return interaction.editReply(
@@ -186,20 +193,9 @@ module.exports = {
         const doc = await Suggestion.create({
             messageId: message.id,
             channelId: targetChannel.id,
+            threadId: thread.id,
             ...draft,
         });
-
-        try {
-            const thread = await message.startThread({
-                name: `Suggestion #${number}`,
-                autoArchiveDuration: 1440,
-                reason: `Discussion thread for suggestion #${number}`,
-            });
-            doc.threadId = thread.id;
-            await doc.save();
-        } catch (err) {
-            client?.logs?.error(`Failed to start thread for suggestion #${number}:`, err) ?? console.error(err);
-        }
 
         await interaction.editReply(
             `Your suggestion has been submitted! Check it out here: ${message.url}`
