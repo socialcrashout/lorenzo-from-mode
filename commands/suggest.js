@@ -15,8 +15,9 @@ const {
 
 const { Suggestion, getNextSuggestionNumber } = require('../models/Suggestion');
 
-// ---- hardcoded banner ----
+// ---- hardcoded banner + destination channel ----
 const BANNER_URL = 'https://yumi.onl/api/files/6a9466e488d7015a1ae91890/raw';
+const SUGGESTION_CHANNEL_ID = '1542149233614913616';
 
 const CUSTOM_IDS = {
     UPVOTE: 'suggest_upvote',
@@ -71,7 +72,7 @@ function buildContainer(doc) {
     if (doc.status === 'pending') {
         container.addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-                'You are able to upvote or downvote, this suggestion will be reviewed via our community leadership team once discussed.'
+                'You can vote on this suggestion using the options below. Once reviewed, it will be discussed and evaluated by the .mode Leadership Team before a final decision is made.'
             )
         );
     } else if (doc.status === 'accepted') {
@@ -143,6 +144,18 @@ module.exports = {
         const description = interaction.options.getString('description', true);
         const reference = interaction.options.getAttachment('reference');
 
+        await interaction.deferReply({ ephemeral: true });
+
+        const targetChannel = await interaction.client.channels
+            .fetch(SUGGESTION_CHANNEL_ID)
+            .catch(() => null);
+
+        if (!targetChannel) {
+            return interaction.editReply(
+                "I couldn't find the suggestions channel. Let a staff member know."
+            );
+        }
+
         const number = await getNextSuggestionNumber();
 
         const draft = {
@@ -157,16 +170,22 @@ module.exports = {
 
         const container = buildContainer(draft);
 
-        const response = await interaction.reply({
-            flags: MessageFlags.IsComponentsV2,
-            components: [container],
-            withResponse: true,
-        });
-        const message = response.resource?.message ?? (await interaction.fetchReply());
+        let message;
+        try {
+            message = await targetChannel.send({
+                flags: MessageFlags.IsComponentsV2,
+                components: [container],
+            });
+        } catch (err) {
+            client?.logs?.error('Failed to post suggestion message:', err) ?? console.error(err);
+            return interaction.editReply(
+                'Something went wrong posting your suggestion. Let a staff member know.'
+            );
+        }
 
         const doc = await Suggestion.create({
             messageId: message.id,
-            channelId: interaction.channelId,
+            channelId: targetChannel.id,
             ...draft,
         });
 
@@ -181,6 +200,10 @@ module.exports = {
         } catch (err) {
             client?.logs?.error(`Failed to start thread for suggestion #${number}:`, err) ?? console.error(err);
         }
+
+        await interaction.editReply(
+            `Your suggestion has been submitted! Check it out here: ${message.url}`
+        );
     },
 
     // Called by index.js's generic component dispatcher for every button/select/modal.
