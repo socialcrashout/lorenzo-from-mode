@@ -1,3 +1,9 @@
+// models/Suggestion.js
+// Assumes db.js connects via mongoose (mongoose.connect(...)) — this file just
+// registers schemas against that same connection. If your db.js actually uses
+// the raw `mongodb` driver instead of mongoose, let me know and I'll swap this
+// for a native collection-based version.
+
 const mongoose = require('mongoose');
 
 const suggestionSchema = new mongoose.Schema({
@@ -12,6 +18,7 @@ const suggestionSchema = new mongoose.Schema({
     downvotes: { type: [String], default: [] },
     status: { type: String, enum: ['pending', 'accepted', 'denied'], default: 'pending' },
     resolvedBy: { type: String, default: null },
+    denyReason: { type: String, default: null },
 }, { timestamps: true });
 
 // Tiny counter collection so suggestion numbers increment atomically
