@@ -142,7 +142,7 @@ async function runAddFlow(message, client) {
     if (!linkMsg) return channel.send('Timed out. Run `-affiliate add` again when ready.');
     const link = linkMsg.content.trim();
 
-    const labelMsg = await askQuestion(message, channel, 'Finally, what should the button say? (e.g. "Mastery Design Course")');
+    const labelMsg = await askQuestion(message, channel, 'Finally, what should the button say? (e.g. "Mode")');
     if (!labelMsg) return channel.send('Timed out. Run `-affiliate add` again when ready.');
     const buttonLabel = labelMsg.content.trim().slice(0, 80);
 
