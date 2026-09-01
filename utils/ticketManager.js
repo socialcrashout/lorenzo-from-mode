@@ -32,6 +32,9 @@ const BTN_ESCALATE = "ticket_escalate";
 const EMOJI_CLOCK = "<:clock:1533146124389585078>";
 const EMOJI_PERSON = "<:person:1502514200705105981>";
 
+const UNCLAIMED_EMOJI = "🔴";
+const CLAIMED_EMOJI = "🟢";
+
 /* ------------------------------------------------------------------ *
  *  Small persistent counter so ticket channel names don't collide
  *  even after a restart. Stored in MongoDB (ticketCounters collection)
@@ -77,6 +80,42 @@ function formatDuration(ms) {
     if (!days && !hours) parts.push(`${seconds}s`);
 
     return parts.length ? parts.join(" ") : "0s";
+}
+
+/* ------------------------------------------------------------------ *
+ *  Turn arbitrary text (category label, username, etc) into something
+ *  safe to drop into a Discord channel name. Discord already lowercases
+ *  and hyphenates channel names for us, but stripping punctuation up
+ *  front avoids ugly double-hyphens like "support---team".
+ * ------------------------------------------------------------------ */
+function slugify(text) {
+    return String(text)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Pull the categoryId / opener id back out of a ticket channel's
+ *  topic. We rely on this (rather than parsing the channel name) so
+ *  that renaming the channel on claim/unclaim never breaks category
+ *  or opener lookups.
+ * ------------------------------------------------------------------ */
+function parseTicketTopic(topic) {
+    if (!topic) return { categoryId: null, openerId: null };
+    const categoryId = topic.match(/categoryId: (\S+)/)?.[1] || null;
+    const openerId = topic.match(/opener: (\d+)/)?.[1] || null;
+    return { categoryId, openerId };
+}
+
+function buildTicketChannelName({ status, category, num, claimedByUsername }) {
+    if (status === "claimed") {
+        return `${CLAIMED_EMOJI}-claimed-${slugify(claimedByUsername)}`;
+    }
+    const suffix = num ? `-${num}` : "";
+    return `${UNCLAIMED_EMOJI}-unclaimed-${slugify(category.label)}${suffix}`;
 }
 
 /* ------------------------------------------------------------------ *
@@ -253,7 +292,7 @@ async function handleCategorySelect(interaction) {
     const guild = interaction.guild;
     const pingRoleId = category.pingRoleId || config.ids.supportRoleId;
     const num = String(await nextTicketNumber()).padStart(4, "0");
-    const channelName = `${category.channelPrefix}-${num}`;
+    const channelName = buildTicketChannelName({ status: "unclaimed", category, num });
 
     const overwrites = [
         { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -286,7 +325,9 @@ async function handleCategorySelect(interaction) {
         type: ChannelType.GuildText,
         parent: parentId || undefined,
         permissionOverwrites: overwrites,
-        topic: `Ticket for ${interaction.user.tag} | category: ${category.label} | opener: ${interaction.user.id}`,
+        // categoryId is embedded here so claim/close/escalate can always
+        // recover the category even after the channel gets renamed.
+        topic: `Ticket for ${interaction.user.tag} | category: ${category.label} | categoryId: ${category.id} | opener: ${interaction.user.id}`,
     });
 
     const container = buildTicketContainer(interaction.user, category);
@@ -322,8 +363,8 @@ async function handleButton(interaction) {
             if (!isStaff) {
                 return interaction.reply({ content: "Only support staff can claim tickets.", flags: MessageFlags.Ephemeral });
             }
-            const category = config.categories.find((c) => channel.name.startsWith(c.channelPrefix)) || config.categories[0];
-            const openerId = channel.topic?.match(/opener: (\d+)/)?.[1];
+            const { categoryId, openerId } = parseTicketTopic(channel.topic);
+            const category = config.categories.find((c) => c.id === categoryId) || config.categories[0];
             const opener = openerId ? await interaction.guild.members.fetch(openerId).catch(() => null) : null;
 
             const container = buildTicketContainer(opener?.user || "the ticket opener", category, { claimed: interaction.user });
@@ -335,6 +376,14 @@ async function handleButton(interaction) {
             await channel.send({
                 components: [buildAssistingContainer(interaction.user)],
                 flags: MessageFlags.IsComponentsV2,
+            });
+
+            // Rename 🔴 unclaimed-... -> 🟢 claimed-<username>. Discord only
+            // allows 2 channel renames per 10 min, so a burst of claim/unclaim
+            // could hit that limit — don't let it break the claim flow.
+            const claimedName = buildTicketChannelName({ status: "claimed", claimedByUsername: interaction.user.username });
+            await channel.setName(claimedName).catch((err) => {
+                console.error("Failed to rename channel on claim:", err);
             });
 
             await interaction.followUp({
@@ -376,7 +425,7 @@ async function handleButton(interaction) {
             if (!isStaff) {
                 return interaction.reply({ content: "Only support staff can escalate tickets.", flags: MessageFlags.Ephemeral });
             }
-            const openerId = channel.topic?.match(/opener: (\d+)/)?.[1];
+            const { openerId } = parseTicketTopic(channel.topic);
             const opener = openerId ? await interaction.guild.members.fetch(openerId).catch(() => null) : null;
 
             const { container, pingText } = buildEscalateContainer(opener?.user || "the ticket opener", interaction.user);
@@ -408,7 +457,8 @@ async function handleButton(interaction) {
  *  exactly like the button-triggered flow does.
  * ------------------------------------------------------------------ */
 async function handleCloseCommand(message) {
-    const category = config.categories.find((c) => message.channel.name?.startsWith(c.channelPrefix));
+    const { categoryId } = parseTicketTopic(message.channel.topic);
+    const category = config.categories.find((c) => c.id === categoryId);
     if (!category) {
         return message.reply("This doesn't look like a ticket channel.");
     }
@@ -435,7 +485,7 @@ async function closeTicket(channel, closedBy) {
         try {
             const logChannel = await channel.guild.channels.fetch(config.ids.transcriptLogChannelId);
             if (logChannel) {
-                const openerId = channel.topic?.match(/opener: (\d+)/)?.[1];
+                const { openerId } = parseTicketTopic(channel.topic);
                 const opener = openerId ? await channel.guild.members.fetch(openerId).catch(() => null) : null;
                 const durationMs = Date.now() - channel.createdTimestamp;
 
