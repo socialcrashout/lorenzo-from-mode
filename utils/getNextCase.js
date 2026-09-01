@@ -11,7 +11,11 @@ async function getNextCase(guildId) {
     { upsert: true, returnDocument: 'after' }
   );
 
-  return result.value.count;
+  // MongoDB Node driver v6+ changed findOneAndUpdate to return the document
+  // directly instead of wrapping it in { value }. Handle both shapes so this
+  // keeps working whether you're on v5 or v6+.
+  const doc = result?.value ?? result;
+  return doc.count;
 }
 
 module.exports = getNextCase;
