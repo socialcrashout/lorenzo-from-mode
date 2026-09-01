@@ -1,38 +1,3 @@
-/**
- * .mode Verification System — commands/verification.js
- * -------------------------------------------------------
- * Fits your existing command-handler pattern: this file exports
- * { data, execute } like your other files in commands/ (ban.js,
- * kick.js, etc). It does NOT create its own client, does NOT
- * call client.login, and does NOT register commands itself —
- * your existing loader/registration script already does that for
- * every file in commands/, and doing it again here is what wiped
- * your other slash commands last time.
- *
- * FLOW (backed live by the Dock API — https://docs.docksys.xyz):
- *  1. User clicks "Verify" on the message posted by /setup-verification.
- *  2. Bot calls Dock's discord-to-roblox lookup for that user + this
- *     guild, AND creates a fresh Dock verification session (used for
- *     the Change/Link Account button URL either way).
- *       - Linked: shows a Container-based message ("You already have
- *         the Roblox account X linked...") with "Change Account"
- *         (Link-style button -> the Dock verifyUrl, handled entirely
- *         client-side, no bot code needed) and "Continue" (bot-handled).
- *       - Not linked: shows a Container telling them to link one, with
- *         just a "Link Account" Link button (same Dock verifyUrl).
- *  3. Clicking "Continue" re-queries Dock (the live source of truth —
- *     no local database); if a link now exists it grants the verified
- *     role, edits the message to the "Verification Successful"
- *     container, and logs an embed (title / description / inline
- *     field grid / "View Profile" button) to the log channel. Roblox
- *     usernames are resolved via Roblox's public users API since Dock
- *     only returns the Roblox ID.
- *
- * ENV: requires DOCK_API_KEY in your bot's environment.
- * Requires: discord.js v14.17.0+  (npm install discord.js@latest)
- * Requires: Node 18+ (global fetch)
- */
-
 const {
   SlashCommandBuilder,
   PermissionFlagsBits,
@@ -63,6 +28,7 @@ const CONFIG = {
   // Dock (https://docs.docksys.xyz)
   DOCK_API_BASE: 'https://api.docksys.xyz',
   DOCK_PID: 'PID-5BbkFDWD',                        // from your Dock dashboard
+  DOCK_SITE_URL: 'https://docksys.xyz/',           // Dock's website, linked from the "Dock" button
 
   ROBLOX_ACCOUNT_EMOJI: '<:Roblox:1532200384968265828>',                      // shown next to a linked Roblox username, swap for a custom emoji if you like
   SERVER_EMOJI: '<:mode_branding_20260510_032226_00:1506790198917206156>',                              // shown next to the server name on the success screen
@@ -72,7 +38,7 @@ const CONFIG = {
 };
 
 // customIds — how the interaction handler recognizes these clicks.
-// "Change Account" / "Link Account" are Link-style buttons (a URL),
+// "Change Account" / "Link Account" / "Dock" are Link-style buttons (a URL),
 // so Discord never sends those to the bot at all — nothing to wire.
 const VERIFY_BUTTON_ID = 'mode_verify';
 const CONTINUE_BUTTON_ID = 'mode_verify_continue';
@@ -176,7 +142,11 @@ function buildVerificationContainer() {
     new ButtonBuilder()
       .setCustomId(VERIFY_BUTTON_ID)
       .setLabel('Verify')
-      .setStyle(ButtonStyle.Secondary)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setLabel('Dock')
+      .setStyle(ButtonStyle.Link)
+      .setURL(CONFIG.DOCK_SITE_URL)
   );
   container.addActionRowComponents(row);
 
@@ -412,41 +382,3 @@ module.exports = {
   createVerificationSession,
 };
 
-/**
- * -------------------------------------------------------
- * WIRING INTO YOUR EXISTING BOT
- * -------------------------------------------------------
- * 1. Drop this file in commands/ as verification.js (already done).
- *    Your existing command loader should pick up `data` and `execute`
- *    the same way it does for ban.js, kick.js, etc.
- *
- * 2. Find your ONE existing
- *      client.on(Events.InteractionCreate, async (interaction) => { ... })
- *    Inside it, alongside your existing slash-command dispatch, add:
- *
- *      const verification = require('./commands/verification.js');
- *
- *      if (interaction.isButton() && interaction.customId === verification.VERIFY_BUTTON_ID) {
- *        await verification.handleVerifyButton(interaction);
- *        return;
- *      }
- *      if (interaction.isButton() && interaction.customId === verification.CONTINUE_BUTTON_ID) {
- *        await verification.handleContinueButton(interaction);
- *        return;
- *      }
- *
- *    Note: "Change Account" / "Link Account" are Link-style buttons
- *    (a real Dock verifyUrl, freshly generated per click), so Discord
- *    opens them client-side and never sends an interaction to your
- *    bot — nothing to wire for those.
- *
- * 3. Set these in your bot's environment / config:
- *      - DOCK_API_KEY  (env var — used exactly like your original snippet)
- *      - CONFIG.DOCK_PID in this file — the PID your Dock API key owns
- *        (find it in your Dock dashboard where you created the API key)
- *
- * 4. Set CONFIG.LOG_ACCENT_COLOR / emojis to taste.
- *
- * 5. Restart the bot once. Nothing here calls rest.put, so your other
- *    slash commands won't disappear.
- */
